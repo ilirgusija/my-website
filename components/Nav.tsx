@@ -16,10 +16,10 @@ const Nav = () => {
             <Link href={"/about-me"}>
                 <NavBarIcon icon={<AiFillInfoCircle size={28} />} text="About Me" />
             </Link>
-            <a href="https://github.com/ilirgusija" target={"_blank"}>
+            <a href="https://github.com/ilirgusija" target={"_blank"} rel="noreferrer">
                 <NavBarIcon icon={<AiFillGithub size={28} />} text="My Github" />
             </a>
-            <a href="https://www.linkedin.com/in/ilir-gusija/" target="_blank">
+            <a href="https://www.linkedin.com/in/ilir-gusija/" target="_blank" rel="noreferrer">
                 <NavBarIcon icon={<AiFillLinkedin size={28} />} text="My LinkedIn" />
             </a>
         </div>

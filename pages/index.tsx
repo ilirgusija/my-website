@@ -7,11 +7,11 @@ export default function Home() {
   return (
     <div className='flex'>
       <Head>
-        <title>Ilir Gusija's Website</title>
+        <title>{"Ilir Gusija's Website"}</title>
         <meta name='keywords' content="Ilir Gusija's portfolio" />
       </Head>
       <Nav/>
-      <h1>Welcome to Next</h1>
+      <h1>Welcome to my website</h1>
     </div>
   )
 }
