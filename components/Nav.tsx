@@ -4,12 +4,11 @@ import { FC } from 'react'
 import Home from '../pages';
 
 
-
 const Nav = () => {
     return (
-        <div className="fixed top-0 h-screen w-16 m-0 justify-center
+        <div className="sticky left-0 top-0 h-screen w-16 m-0 p-1 justify-center
                     flex flex-col
-                    bg-gray-900 text-white shadow-lg">
+                    bg-gray-900 text-white shadow-lg z-40">
             <Link href={"/"}>
                 <NavBarIcon icon={<AiFillHome size={28} />} text={"Home"}/>
             </Link>
@@ -31,10 +30,10 @@ type IconProps = {
     text: string;
 };
 
-const NavBarIcon: FC<IconProps> = ({ icon, text = 'tooltip' }) => (
+export const NavBarIcon: FC<IconProps> = ({ icon, text = 'tooltip' }) => (
     <div className='sidebar-icon group'>
         {icon}
-        <span className='sidebar-tooltip group-hover:scale-100'>
+        <span className='sidebar-tooltip group-hover:scale-100 '>
             {text}
         </span>
     </div>
