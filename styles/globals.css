@@ -10,13 +10,17 @@
                 hover:bg-gray-600 hover:text-white
                 rounded-3xl hover:rounded-xl
                 transition-all duration-300 ease-linear
-                cursor-pointer;
+                cursor-pointer z-50;
     }
     .sidebar-tooltip {
         @apply absolute w-auto p-2 m-2 min-w-max left-14
         rounded-md shadow-md
         text-white bg-gray-900
         text-xs font-bold
-        transition-all duration-100 scale-0 origin-left;
+        transition-all duration-100 scale-0 origin-left z-50;
+    }
+    .about-me-paragraph {
+        @apply flex-auto justify-center align-middle p-1
+        text-sm sm:text-base whitespace-pre-line
     }
 }
