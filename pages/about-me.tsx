@@ -31,17 +31,17 @@ const About = () => {
           <div className="w-full md:w-3/5 space-y-4 animate-slide-in">
             <div className="bg-gray-100 p-6 rounded-md shadow-md">
               <p className="font-roboto text-base text-justify">
-                My name is Ilir, and I'm a 4th-year student at Queen's University, currently interning at Huawei Technologies. I'm passionate about Applied Mathematics and Computer Engineering, with a focus on topics like Control Theory, Distribution Theory, Probability, and Complex Analysis.
+                My name is Ilir, and I&apos;m a 4th-year student at Queen&apos;s University, currently interning at Huawei Technologies. I&apos;m passionate about Applied Mathematics and Computer Engineering, with a focus on topics like Control Theory, Distribution Theory, Probability, and Complex Analysis.
               </p>
             </div>
             <div className="bg-gray-100 p-6 rounded-md shadow-md">
               <p className="font-roboto text-base text-justify">
-                My professional journey began at Citi as a Full Stack Developer, where I honed my skills in Angular, Java Springboot, and MongoDB. Now, I work in a research-driven environment at Huawei, where I've developed expertise in CI/CD technologies, LLVM, Clang, and AST analysis.
+                My professional journey began at Citi as a Full Stack Developer, where I honed my skills in Angular, Java Springboot, and MongoDB. Now, I work in a research-driven environment at Huawei, where I&apos;ve developed expertise in CI/CD technologies, LLVM, Clang, and AST analysis.
               </p>
             </div>
             <div className="bg-gray-100 p-6 rounded-md shadow-md">
               <p className="font-roboto text-base text-justify">
-                I'm a lifelong learner, always eager to expand my knowledge in computing and beyond. I've created this website to showcase my full-stack abilities and to serve as a platform for demonstrating my future projects.
+                I&apos;m a lifelong learner, always eager to expand my knowledge in computing and beyond. I&apos;ve created this website to showcase my full-stack abilities and to serve as a platform for demonstrating my future projects.
               </p>
             </div>
           </div>
