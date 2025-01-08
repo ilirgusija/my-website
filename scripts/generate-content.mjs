@@ -4,6 +4,8 @@ import { parse } from "csv-parse/sync";
 import fetch from "node-fetch"; // Node.js fetch API
 import ColorThief from "colorthief";
 import tinycolor from "tinycolor2";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.development.local" });
 
 function rgbToHex(r, g, b) {
   return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
@@ -88,8 +90,11 @@ async function csvToJSON(csvFilePath, apiKey) {
 }
 
 async function books() {
-    const apiKey = "AIzaSyA2OFqBel6WZgzaLCwAGFhBQsMMo-N6Zf4"; // Replace with your API key
-
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing GOOGLE_BOOKS_API_KEY in environment variables");
+    }
+  
     const basePath = path.join(process.cwd(), "content", "books");
     const csvPath = path.join(process.cwd(), "content", "reading_list.csv");
     const bookData = await csvToJSON(csvPath, apiKey);
