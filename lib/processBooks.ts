@@ -1,17 +1,5 @@
 import path from "path";
 import fs from "fs";
-import tinycolor from "tinycolor2";
-import ColorThief from "colorthief";
-import fetch from "node-fetch";
-
-interface BookRecord {
-    "ISBN-13": string;
-    "Title": string;
-    "Authors": string;
-    "Finished Reading": string;
-    "Rating": string;
-    "Notes": string;
-}
 
 interface ProcessedBook {
     ISBN: string;
@@ -26,103 +14,69 @@ interface ProcessedBook {
     summary: string;
 }
 
-interface GoogleBooksResponse {
-    items?: {
-        volumeInfo?: {
-            imageLinks?: {
-                thumbnail?: string;
-            };
-        };
-    }[];
+// reads the current index.json
+function readExistingBooks() {
+  const jsonPath = path.join(process.cwd(), "content", "books", "index.json");
+  if (fs.existsSync(jsonPath)) {
+    const data = fs.readFileSync(jsonPath, "utf8");
+    return JSON.parse(data);
+  }
+  return [];
 }
 
-function rgbToHex(r: number, g: number, b: number): string {
-    return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
-}
-
-async function fetchCoverAndTextColours(imagePath: string) {
-    const dominantColor = await ColorThief.getColor(imagePath);
-    const spineColor = rgbToHex(...dominantColor);
-    const textColor = tinycolor(spineColor).isDark() ? "#FFFFFF" : "#000000";
-    return { spineColor, textColor };
-}
-
-async function fetchBookQualities(isbn: string) {
-    const imagePath = path.join(process.cwd(), "public", "books", `${isbn}.jpg`);
-    const coverImage = path.join("/books", `${isbn}.jpg`);
-    
-    try {
-        // Check if image already exists
-        await fs.promises.access(imagePath);
-        const { spineColor, textColor } = await fetchCoverAndTextColours(imagePath);
-        return { coverImage, spineColor, textColor };
-    } catch {
-        // Fetch from Google Books API if image doesn't exist
-        const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
-        const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${apiKey}`;
-        const response = await fetch(url);
-        const data = (await response.json()) as GoogleBooksResponse;
-
-        if (!data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail) {
-            return {
-                coverImage: null,
-                spineColor: "#FFFFFF",
-                textColor: "#000000"
-            };
-        }
-
-        const coverUrl = data.items[0].volumeInfo.imageLinks.thumbnail;
-        try {
-            const imageResponse = await fetch(coverUrl);
-            const imageBuffer = await imageResponse.buffer();
-            await fs.promises.writeFile(imagePath, imageBuffer);
-            const { spineColor, textColor } = await fetchCoverAndTextColours(imagePath);
-            return { coverImage, spineColor, textColor };
-        } catch (error) {
-            console.error("Error processing image:", error);
-            return {
-                coverImage,
-                spineColor: "#FFFFFF",
-                textColor: "#000000"
-            };
-        }
-    }
-}
-
-export async function processBookData(records: BookRecord[]): Promise<void> {
-    const processedBooks: ProcessedBook[] = [];
-
-    for (const record of records) {
-        if (record["Finished Reading"]) {
-            const { coverImage, spineColor, textColor } = await fetchBookQualities(record["ISBN-13"]);
-            
-            processedBooks.push({
-                ISBN: record["ISBN-13"],
-                title: record["Title"],
-                author: record["Authors"],
-                date: record["Finished Reading"],
-                rating: Number(record["Rating"]) * 2,
-                coverImage: coverImage || '',
-                spineColor,
-                textColor,
-                slug: `/books/${record["ISBN-13"]}`,
-                summary: record["Notes"] || "",
-            });
-        }
-    }
-
-    // Sort by date (most recent first)
-    processedBooks.sort((a, b) => {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+function extractDifferences(newBooks: ProcessedBook[], existingBooks: ProcessedBook[]) {
+    const existingBookMap = new Map(existingBooks.map((book) => [book.ISBN, book]));
+  
+    const addedBooks = newBooks.filter((book) => !existingBookMap.has(book.ISBN));
+    const updatedBooks = newBooks.filter((book) => {
+      const existingBook = existingBookMap.get(book.ISBN);
+      if (!existingBook) return false;
+  
+      // Check if the book data has changed
+      return (
+        book.title !== existingBook.title ||
+        book.author !== existingBook.author ||
+        book.date !== existingBook.date ||
+        book.rating !== existingBook.rating ||
+        book.coverImage !== existingBook.coverImage ||
+        book.spineColor !== existingBook.spineColor ||
+        book.textColor !== existingBook.textColor ||
+        book.summary !== existingBook.summary
+      );
     });
+  
+    return { addedBooks, updatedBooks };
+}
 
-    // Ensure content directory exists
-    const contentDir = path.join(process.cwd(), "content", "books");
-    await fs.promises.mkdir(contentDir, { recursive: true });
+// writes updated books back to index.json
+function writeUpdatedBooks(updatedBooks: any[]) {
+  const jsonPath = path.join(process.cwd(), "content", "books", "index.json");
+  fs.writeFileSync(jsonPath, JSON.stringify(updatedBooks, undefined, 2));
+}
 
-    // Write the processed data
-    await fs.promises.writeFile(
-        path.join(contentDir, "index.json"),
-        JSON.stringify(processedBooks, null, 2)
-    );
-} 
+export async function processBookData(newBooks: ProcessedBook[]) {
+    const existingBooks = readExistingBooks();
+
+    // merge and deduplicate by ISBN
+    const { addedBooks, updatedBooks } = extractDifferences(newBooks, existingBooks);
+
+    console.log(`Found ${addedBooks.length} new books and ${updatedBooks.length} updated books.`);
+
+    const mergedBooks = [
+        ...existingBooks.filter(
+          (book: ProcessedBook) => 
+            !addedBooks.some((added) => added.ISBN === book.ISBN) &&
+            !updatedBooks.some((updated) => updated.ISBN === book.ISBN)
+        ),
+        ...addedBooks,
+        ...updatedBooks,
+    ];
+
+  // Sort books by date
+  mergedBooks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Write updated books back to index.json
+  writeUpdatedBooks(mergedBooks);
+
+  console.log("Books updated successfully.");
+}

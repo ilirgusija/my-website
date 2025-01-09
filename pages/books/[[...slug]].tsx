@@ -8,12 +8,13 @@ import {
     Divider,
     Link,
 } from "@chakra-ui/react";
-import { GetStaticPropsContext, NextPageWithLayout } from "next";
+import { GetStaticPropsContext } from "next";
 import Layout from "../../components/Layout";
 import { Prose } from "@nikolovlazar/chakra-ui-prose";
 import { Book, getAllBooks, getAllSlugs, getBook, Content } from "../../lib/books";
 import { Bookshelf } from "../../components/Bookshelf";
 import { NextSeo } from "next-seo";
+import type { NextPageWithLayout } from "../_app";
 
 interface BooksProps {
     books: Book[];
@@ -126,6 +127,7 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
             props: {
                 books,
             },
+            revalidate: 60
         };
     }
     const book = await getBook(params.slug[0] as string, books);
@@ -138,5 +140,6 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
     }
     return {
         props: { books, book },
+        revalidate: 60
     };
 }

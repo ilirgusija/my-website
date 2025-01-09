@@ -2,11 +2,22 @@ import type { AppProps } from "next/app";
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import { Prose, withProse } from "@nikolovlazar/chakra-ui-prose";
 import Layout from "../components/Layout";
-import { ReactElement } from "react";
+import { ReactElement, ReactNode } from "react";
 import { DefaultSeo } from "next-seo";
 import React from "react";
 import { useRouter } from "next/router";
-import { Lora } from "@next/font/google";
+import { Lora } from "next/font/google";
+import { NextPage } from "next";
+
+// define a custom layout type
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+  getLayout?: (page: ReactElement) => ReactNode
+}
+
+// extend appprops to include the custom layout type
+interface AppPropsWithLayout extends AppProps {
+  Component: NextPageWithLayout;
+}
 
 const lora = Lora({ subsets: ["latin"], display: "swap" });
 
@@ -39,7 +50,7 @@ const getDefaultLayout = (page: ReactElement) => (
   </Layout>
 );
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps }: AppPropsWithLayout) {
   const router = useRouter();
   const getLayout = Component.getLayout || getDefaultLayout;
 

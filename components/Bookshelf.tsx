@@ -6,7 +6,7 @@ import {
   Heading,
   Image,
   Center,
-  useDimensions,
+  useSize,
   useBreakpointValue,
 } from "@chakra-ui/react";
 import React from "react";
@@ -27,7 +27,7 @@ export function Bookshelf({ books }: BookshelfProps) {
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const scrollRightRef = React.useRef<HTMLDivElement>(null);
   const scrollLeftRef = React.useRef<HTMLDivElement>(null);
-  const viewportDimensions = useDimensions(viewportRef, true);
+  const viewportDimensions = useSize(viewportRef);
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [booksInViewport, setBooksInViewport] = React.useState(0);
   const scrollEvents = useBreakpointValue({
@@ -88,7 +88,7 @@ export function Bookshelf({ books }: BookshelfProps) {
   React.useEffect(() => {
     if (viewportDimensions) {
       boundedRelativeScroll(0);
-      const numberOfBooks = viewportDimensions.contentBox.width / (width + 11);
+      const numberOfBooks = viewportDimensions.width / (width + 11);
       setBooksInViewport(numberOfBooks);
     }
   }, [viewportDimensions, boundedRelativeScroll]);

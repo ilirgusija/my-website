@@ -1,5 +1,149 @@
 [
   {
+    "ISBN": "9781382055444",
+    "title": "A Christmas Carol",
+    "author": "Dickens, Charles",
+    "date": "2025-01-06",
+    "rating": 7,
+    "coverImage": "/books/9781382055444.jpg",
+    "spineColor": "#2a2c2d",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9781382055444",
+    "summary": ""
+  },
+  {
+    "ISBN": "9780141393049",
+    "title": "Penguin Classics Nineteen Eighty Four",
+    "author": "Orwell, George",
+    "date": "2024-12-15",
+    "rating": 0,
+    "coverImage": "/books/9780141393049.jpg",
+    "spineColor": "#d26d2e",
+    "textColor": "#000000",
+    "slug": "/books/9780141393049",
+    "summary": ""
+  },
+  {
+    "ISBN": "9780465050659",
+    "title": "The Design of Everyday Things",
+    "author": "Norman, Don",
+    "date": "2024-11-12",
+    "rating": 0,
+    "coverImage": "/books/9780465050659.jpg",
+    "spineColor": "#f5db3d",
+    "textColor": "#000000",
+    "slug": "/books/9780465050659",
+    "summary": ""
+  },
+  {
+    "ISBN": "9781632062833",
+    "title": "Mud Sweeter Than Honey",
+    "author": "Rejmer, Margo",
+    "date": "2024-10-08",
+    "rating": 9,
+    "coverImage": "/books/9781632062833.jpg",
+    "spineColor": "#bfc0c1",
+    "textColor": "#000000",
+    "slug": "/books/9781632062833",
+    "summary": "A very gripping read. \n\nAs an Albanian born and raised outside of it, I’ve only ever learned about Albanian culture and history through my parents and family. Recently, I’ve found myself more interested in learning more about what it is to be an Albanian. This has led me to listen to more of the music, attempt (half heartedly) to speak more of the language, and finally learn the history.\n\nConsequently this led me to read this book, an account Enver Hoxha’s regime told through the perspective of the people who suffered through it. What you learn is that the citizens of Albania had to suffer though an Orwellian, suffocating, and crushing regime.\n\nThe stories are nothing short of heartbreaking and through the various accounts you as the reader start to see the common threads recurring through all the tales these people have to tell.\n\nOverall, this book has not only illuminated the horrors Albanians had to endure to me but also the brutality of totalitarianism into how it infects every aspect of everyone’s life who’s affected by it. "
+  },
+  {
+    "ISBN": "9781501144325",
+    "title": "Why We Sleep",
+    "author": "Walker, Matthew",
+    "date": "2024-09-26",
+    "rating": 7,
+    "coverImage": "/books/9781501144325.jpg",
+    "spineColor": "#082445",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9781501144325",
+    "summary": "Attempted to read this on my kindle but stopped a third of the way through. I will say, this book has a lot of interesting info but it’s a very breadth focused (which makes sense given its target audience!) but as a result you get stuck with some material which may bore you. Hence I loved like 50% of the chapter content but got really bored with certain other parts like the ones focused on disease. Still a very approachable read and one that i’ve taken ideas from and implemented into my own life."
+  },
+  {
+    "ISBN": "9781439170199",
+    "title": "The Lessons of History",
+    "author": "Durant, Will",
+    "date": "2024-08-06",
+    "rating": 9,
+    "coverImage": "/books/9781439170199.jpg",
+    "spineColor": "#b3a57d",
+    "textColor": "#000000",
+    "slug": "/books/9781439170199",
+    "summary": "Loved it. As a “Rest is History” fan I’ve really found myself yearning for an education in history and this book helped spark more of that curiosity. I loved the commentary provided by the author and intend to revisit this one in the future."
+  },
+  {
+    "ISBN": "9780393352979",
+    "title": "The Vital Question",
+    "author": "Lane, Nick",
+    "date": "2024-08-01",
+    "rating": 8,
+    "coverImage": "/books/9780393352979.jpg",
+    "spineColor": "#060706",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9780393352979",
+    "summary": "Very interesting book. This one took me a while and that’s because I feel it goes through a bit of a lull halfway through. I definitely would like to come back to this one in the future as it really gives an all-encompassing view to life and its origins which is a naturally interesting topic to explore."
+  },
+  {
+    "ISBN": "9780141018812",
+    "title": "Great Ideas On the Shortness of Life",
+    "author": "Seneca",
+    "date": "2024-06-26",
+    "rating": 7,
+    "coverImage": "/books/9780141018812.jpg",
+    "spineColor": "#f4f1f0",
+    "textColor": "#000000",
+    "slug": "/books/9780141018812",
+    "summary": ""
+  },
+  {
+    "ISBN": "9781953953230",
+    "title": "Poor Charlie's Almanack",
+    "author": "Munger, Charles T.",
+    "date": "2024-06-19",
+    "rating": 8,
+    "coverImage": "/books/9781953953230.jpg",
+    "spineColor": "#2e2a4b",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9781953953230",
+    "summary": "Lessons:\n- Invert, always invert\n- Create a multidisciplinary latticework of knowledge\n- Pilot’s checklist\n- Understanding human psychology\n- Second-order and higher order effects\n\nOverall, a very inspiring read with my main takeaway being that there’s wisdom to be extracted from every specialty."
+  },
+  {
+    "ISBN": "9781449389550",
+    "title": "Hackers & Painters",
+    "author": "Graham, Paul",
+    "date": "2024-05-31",
+    "rating": 7,
+    "coverImage": "/books/9781449389550.jpg",
+    "spineColor": "#343028",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9781449389550",
+    "summary": "This book is a compilation of essays by the man himself. The first half of the book was not really my cup of tea as it covered subjects like nerds and high school as well as the very outdated claims on web apps being the next big thing (spoiler alert they were). So I powered through this part of the book to arrive at the more relevant and thought provoking second half. Here I sat through PG preach about Lisp, a high-level programming language. While at first I was quite skeptical of his claims, by the end of the book I was wholeheartedly convinced I needed to at least give it a go and try it for myself. Other ideas I appreciated was the parallel drawn between hackers and painters (as demonstrated in the title) and the clear distinction between hackers and computer scientists (something I only subconsciously noticed before). \n\nAlso really loved his repugnance for Java, that language can rot in hell."
+  },
+  {
+    "ISBN": "9781101947906",
+    "title": "Exhalation",
+    "author": "Chiang, Ted",
+    "date": "2024-05-20",
+    "rating": 0,
+    "coverImage": "/books/9781101947906.jpg",
+    "spineColor": "#0f1b20",
+    "textColor": "#FFFFFF",
+    "slug": "/books/9781101947906",
+    "summary": "This is a compilation of short stories, I don’t want to discuss all of them but one that particularly resonated with me was *The Truth of Fact, The Truth of Feeling*.\n\nThis story is a dual narrative, where the narrator seems to be writing some sort of blog post in a near-future where a product called Remem is about to be introduced that constantly records your day and is always running, bringing up memories you mention or query for in the corner of your sight, like a Apple Vision Pro. \n\nThe writer begins by writing about the virtues of organic memory and has a clear stance against the technology, arguing that it will remove the romance, nostalgia, and story of our memories. He cites marital feuds on who’s right vs. wrong as a type of issue this technology exacerbates.\n\nConcurrently with this narrative we are taken back to the early 1940s where we are observing the Shangev tribe of the Tiv people in Nigeria. This part of the story follows a young boy named Jijingi who through a preacher named Moseby, discovers the power of writing. \n\nThis story resonated with me because of the various ideas it presents without giving a full opinion on. Memory is an interesting subject, my earliest memory was as a child (probably 4/5 years old) in my townhouse with my family on my birthday and my dad coming in from work with a poster of Dash (character from the Incredibles). This memory is so heartwarming to me, the innocent happiness I recall feeling, the youth and energy of my family, who at the time were relative newcomers to the country. The story argues that a memory like this (which is probably artificially reconstructed at this point) is better left as an organic memory. If I had a live feed of it would I still feel the same warmth that I do now? Perhaps conversely, seeing it in finer detail would provide me with more to grasp onto and give me more to look back with love and nostalgia? \n\nI think this is an interesting thing to consider because I think we partially already deal with this issue to a degree presently with the prevalence of smartphone cameras and the nature in which people document such events so commonly today. \n\nWe then get presented with a strong counter argument which is that our memories are very unreliable. We commonly look back on situations with a nostalgic lens which we can safely argue is not very harmful; we also tend to look back on some disputes with less intensity than we felt in the moment. This is what the narrator argues allows us to move past arguments after the fact, and they cite that perhaps if they had a running highlight reel of their arguments with their daughter, perhaps they would find it more difficult to move past these disputes. \n\nThey then decide to try Remem and look through their arguments with their daughter to give a fair two-sided account of their argument. Essentially, their organic memory failed them and gave them a much rosier account with their relationship with their daughter. Pretty much they recall themselves more as a martyr and really what happened was that they emotionally abused their daughter. This causes the narrator to really reevaluate what they think of themself as a father but also on the utility of Remem as a technology. If it weren’t for Remem they would have continued their life in \u001dignorance without fully understanding how they negatively affected their daughter. This technology enabled them to see things more clearly and take more accountability for their actions. \n\nOverall, this story shows how we as a humans tend to romanticize our lives. We tend to experience increased juvenoia as we age and discount the utility that certain technologies have despite how they upend certain foundational experiences. This story pretty much says that these technologies are a lot more grey than black or white in their impact. Social media is great because it connects us with family, introduces us to new friends, and helps us find community. It also is very dangerous to youth and can cause psychological problems. It is both good and bad, but if one mindfully uses it with the intent of extracting as much good and staying away from the bad it can be a very beneficial technology, just like how Remem itself could be too. I personally know many strong headed people that will remember certain events through their own rose-tinted glasses that could benefit immensely from such a technology, heck even I could use it as I am particularly stubborn on certain events/arguments."
+  },
+  {
+    "ISBN": "9780593731383",
+    "title": "Read Write Own",
+    "author": "Dixon, Chris",
+    "date": "2024-05-12",
+    "rating": 0,
+    "coverImage": "/books/9780593731383.jpg",
+    "spineColor": "#e7ddd8",
+    "textColor": "#000000",
+    "slug": "/books/9780593731383",
+    "summary": ""
+  },
+  {
     "ISBN": "9780465043576",
     "title": "The Misbehavior of Markets",
     "author": "Mandelbrot, Benoit; Hudson, Richard L.",
@@ -240,18 +384,6 @@
     "summary": "I can see why people would find this interesting but it is really obvious this was written in ancient times. Women are regarded as inferior intellectually and the book praises what by today’s standards would be pedophilic relationships. It was still interesting to get a view of what Plato and an ancient greek philosopher would think and i was more interested in the greek culture aspect of the work than the actual philosophizing done about love which i believe is very outdated and non-applicable to todays discourse on the subject."
   },
   {
-    "ISBN": "9781501144318",
-    "title": "Why We Sleep",
-    "author": "Walker, Matthew",
-    "date": "2023-07-23",
-    "rating": 0,
-    "coverImage": "/books/9781501144318.jpg",
-    "spineColor": "#0a2647",
-    "textColor": "#FFFFFF",
-    "slug": "/books/9781501144318",
-    "summary": ""
-  },
-  {
     "ISBN": "9780060155476",
     "title": "The Intelligent Investor",
     "author": "Graham, Benjamin",
@@ -262,18 +394,6 @@
     "textColor": "#FFFFFF",
     "slug": "/books/9780060155476",
     "summary": "Was a nice book. Pretty outdated though given the rise of ETFs in recent years and how they have changed investing for the lay-investor. Also some sections were simply outdated and too specific (e.g. the sections on specific bond types). I also made the mistake of buying the classic edition which is the one written in the 50s so it was even more useless (I then read the “newest” edition which was slightly better)."
-  },
-  {
-    "ISBN": "9780060752613",
-    "title": "intelligent investor",
-    "author": "Graham, Benjamin",
-    "date": "2023-06-16",
-    "rating": 0,
-    "coverImage": "/books/9780060752613.jpg",
-    "spineColor": "#f6f0e1",
-    "textColor": "#000000",
-    "slug": "/books/9780060752613",
-    "summary": ""
   },
   {
     "ISBN": "9781589795471",
