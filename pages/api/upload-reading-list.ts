@@ -1,10 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { parse } from 'csv-parse/sync';
-import { processBookData } from '../../lib/processBooks';
-import { csvToJSON } from "../../scripts/generate-content";
-// import fs from "fs";
-// import dotenv from "dotenv";
-// dotenv.config({ path: ".env.development.local" });
+import { books } from "../../scripts/generate-content";
+import { put } from '@vercel/blob';
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.development.local" });
 
 export const config = {
   api: {
@@ -30,6 +28,16 @@ type ErrorResponse = {
   error?: string;
 };
 
+async function uploadCSVtoBlob(csvData: any) {
+  const result = await put(`csv_data/reading_data.csv`, csvData, {
+    access: 'public',
+    contentType: 'text/csv',
+    addRandomSuffix: false,
+  });
+  console.log('Uploaded CSV to Blob @', result.pathname);
+  return result;
+}
+
 export default async function handler(
   req: CsvUploadRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>
@@ -53,24 +61,27 @@ export default async function handler(
       res.status(400).json({ message: 'Bad Request: CSV data is missing' });
       return;
     }
-    // const csvPath = path.join(process.cwd(), "content", "reading_data.csv");
-    // fs.writeFileSync(csvPath, csvData);
-
-    const books = await csvToJSON(csvData)
     
-    // process the records
-    await processBookData(books);
+    try{
+      await uploadCSVtoBlob(csvData);
+      const newBooks = await books();
 
-    // trigger revalidation for the books page
-    await res.revalidate("/books");
-
-    res.status(200).json({
-      message: 'Successfully updated reading list',
-      recordsProcessed: books.length,
-    });
+      // trigger revalidation for the books page
+      await res.revalidate("/books");
+      
+      res.status(200).json({
+        message: 'Successfully updated reading list',
+        recordsProcessed: newBooks.length,
+      });
+    } catch(error) {
+      console.error('Error uploading CSV to Blob:', error);
+      res.status(500).json({
+        message: 'Error uploading CSV to Blob',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   } catch (error) {
     console.error('Error processing upload:', error);
-
     res.status(500).json({
       message: 'Error processing upload',
       error: error instanceof Error ? error.message : String(error),

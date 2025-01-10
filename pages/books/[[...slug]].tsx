@@ -108,7 +108,7 @@ Books.getLayout = (page: JSX.Element) => (
 export async function getStaticPaths() {
     const paths = getAllSlugs();
     return {
-        paths: [{ params: { slug: undefined } }, ...paths],
+        paths: [{ params: { slug: undefined } }, ...await paths],
         fallback: false,
     };
 }
@@ -121,7 +121,7 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
             },
         };
     }
-    const books = getAllBooks();
+    const books = await getAllBooks();
     if (!params || !params.slug || params.slug.length === 0) {
         return {
             props: {

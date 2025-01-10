@@ -1,11 +1,12 @@
 import path from "path";
-import fs from "fs";
 import { parse } from "csv-parse/sync";
 import fetch from "node-fetch"; // Node.js fetch API
-import ColorThief from "colorthief";
 import tinycolor from "tinycolor2";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
+import { put, head } from '@vercel/blob';
+import Vibrant from 'node-vibrant'; // For dominant colors
+
 
 interface GoogleBooksResponse {
     items?: {
@@ -15,31 +16,6 @@ interface GoogleBooksResponse {
             };
         };
     }[];
-}
-
-interface BookRecord {
-    "Reading List ID": string;
-    "Google Books ID": string;
-    "Apple Books ID": string,
-    "ISBN-13": string;
-    "Title": string
-    "Subtitle": string;
-    "Authors": string;
-    "Page Count": string;
-    "Publication Date": string;
-    "Publisher": string;
-    "Description": string;
-    "Subjects": string;
-    "Language Code": string;
-    "Started Reading": string;
-    "Paused": string;
-    "Finished Reading": string;
-    "Did Not Finish": string;
-    "Current Page": number;
-    "Current Percentage": number;
-    "Rating": number;
-    "Notes": string
-    "Lists": string
 }
 
 interface ProcessedBook {
@@ -55,26 +31,80 @@ interface ProcessedBook {
     summary: string;
 }
 
+async function fetchCSVFromBlob(): Promise<string> {
+    try {
+        const headResult = await head(path.join("csv_data","reading_data.csv"));
+        const csvUrl = headResult.downloadUrl;
+        const response = await fetch(csvUrl);
+    
+        if (!response.ok) {
+          throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+        }
+        const csvData = await response.text();
+        return csvData;
+    }
+    catch(error) {
+        throw new Error("reading_data.csv not found");
+    }
+}
+
+export async function uploadJSONToBlob(data: object) {
+    const jsonData = JSON.stringify(data, null, 2);
+    await put(`json_data/index.json`, jsonData, {
+        access: 'public',
+        contentType: 'application/json',
+        addRandomSuffix: false,
+    });
+}
+
+async function uploadImageToBlob(fileName: string, imageBuffer: Buffer): Promise<string> {
+    const url  = (await put(`images/${fileName}`, imageBuffer, {
+      access: 'public',
+      contentType: 'image/jpeg', // Adjust the content type as needed
+      addRandomSuffix: false,
+    })).downloadUrl;
+    return url;
+}
+
 function rgbToHex(r: number, g: number, b: number ): string {
   return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
 }
 
-async function fetchCoverAndTextColours(imagePath: string) {
-    const dominantColor: number[] = await ColorThief.getColor(imagePath);
-    const tupleColor = dominantColor as [number, number, number];
-    const spineColor = rgbToHex(...tupleColor);
-    const textColor = tinycolor(spineColor).isDark() ? "#FFFFFF" : "#000000";
+async function fetchCoverAndTextColours(imageURL: string) {
+    // Fetch the image as a Buffer
+    const response = await fetch(imageURL);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const imageBuffer = await response.arrayBuffer();
+
+    // Use Vibrant to get dominant color
+    const palette = await Vibrant.from(Buffer.from(imageBuffer)).getPalette();
+    if (!palette || !palette.Vibrant) {
+        throw new Error('Failed to extract colors from image');
+    }
+
+    const dominantColor = palette.Vibrant.rgb;
+    const spineColor = rgbToHex(dominantColor[0], dominantColor[1], dominantColor[2]);
+    const textColor = tinycolor(spineColor).isDark() ? '#FFFFFF' : '#000000';
+
     return { spineColor, textColor };
 }
 
 async function fetchBookQualities(isbn: string) { 
     // First check if the image already exists
-    const imagePath = path.join(process.cwd(),"public","books",`${isbn}.jpg`);
-    const coverImage = path.join("/books", `${isbn}.jpg`);
-    const defaultIm = path.join(process.cwd(),"public","books","null.jpg");
+    const blobUrl = process.env.BLOB_URL
+    if (!blobUrl) {
+        throw new Error("BLOB_URL not found");
+    }
+    const coverPath = path.join("images", `${isbn}.jpg`);
+    const defaultIm = path.join("books","null.jpg");
     try {
-        await fs.promises.access(imagePath);
-        const { spineColor, textColor } = await fetchCoverAndTextColours(imagePath);    
+        const headResult = await head(coverPath);
+        const imageUrl = headResult.downloadUrl; 
+        const coverImage = imageUrl;
+
+        const { spineColor, textColor } = await fetchCoverAndTextColours(imageUrl);    
         return { coverImage, spineColor, textColor };
     } catch(error) {
         // Otherwise we look on the Google API to retrieve it
@@ -84,26 +114,25 @@ async function fetchBookQualities(isbn: string) {
         const data = (await response.json()) as GoogleBooksResponse;
 
         if (!data.items || data.items.length === 0) {
-            console.log("No data found for ISBN:", isbn);
             return { coverImage: defaultIm, spineColor: "#FFFFFF", textColor: "#000000" };
         }
 
         const volumeInfo = data.items[0].volumeInfo;
         if (!volumeInfo || !volumeInfo.imageLinks || !volumeInfo.imageLinks.thumbnail) {
-            console.log("Couldn't find image for ISBN:", isbn);
             return { coverImage: defaultIm, spineColor: "#FFFFFF", textColor: "#000000" };
         }
 
         const coverUrl = volumeInfo.imageLinks.thumbnail;
+        const imageResponse = await fetch(coverUrl);
+        const imageBuffer = await imageResponse.buffer();
+        const imageUrl = await uploadImageToBlob(`${isbn}.jpg`, imageBuffer);
+        const coverImage = imageUrl;
         try {
-            const imageResponse = await fetch(coverUrl);
-            const imageBuffer = await imageResponse.buffer();
-            await fs.promises.writeFile(imagePath, imageBuffer);
-            const { spineColor, textColor } = await fetchCoverAndTextColours(imagePath);
+            const { spineColor, textColor } = await fetchCoverAndTextColours(imageUrl);
             return { coverImage, spineColor, textColor };
         } catch (error) {
             console.error("Error processing image:", error);
-            return { coverImage, spineColor: "#FFFFFF", textColor: "#000000" }; // default colors in case of error
+            return {coverImage, spineColor: "#FFFFFF", textColor: "#000000" }; // default colors in case of error
         }
     } 
 }
@@ -118,7 +147,6 @@ export async function csvToJSON(csvData: string | Buffer): Promise<ProcessedBook
     const books = [];
     for (let record of records) {
         if (record["Finished Reading"] && !(record["Did Not Finish"] == "Y")) {
-            // Only process records with a valid 'Finished Reading' date
             const {coverImage, spineColor, textColor }  = await fetchBookQualities(record["ISBN-13"]);
             books.push({
                 ISBN: record["ISBN-13"],
@@ -137,28 +165,25 @@ export async function csvToJSON(csvData: string | Buffer): Promise<ProcessedBook
     return books;
 }
 
-async function books() {
-    const basePath = path.join(process.cwd(), "content", "books");
-    const csvPath = path.join(process.cwd(), "content", "reading_data.csv");
-    const csvData = fs.readFileSync(csvPath, "utf8");
+export async function books() {
+    const csvData = await fetchCSVFromBlob();
     const bookData = await csvToJSON(csvData);
 
     bookData.sort((a, b) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
-    fs.writeFileSync(
-        path.join(basePath, "index.json"),
-        JSON.stringify(bookData, undefined, 2),
-    );
+    await uploadJSONToBlob(bookData);
+    return bookData;
 }
 
 async function main() {
-    const jsonPath = path.join(process.cwd(), "content", "books", "index.json");
-    const jsonExists = fs.existsSync(jsonPath);
-  
-    if (!jsonExists) {
-      await books();
+    try{
+        await head(path.join("json_data", "index.json"));
+    }
+    catch(error) {
+        console.log("json does not exist");
+        await books();
     }
 }
 

@@ -1,5 +1,7 @@
 import path from "path";
-import fs from "fs";
+import { head } from "@vercel/blob";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.development.local" });
 
 export interface Book {
     ISBN: string;
@@ -14,17 +16,25 @@ export interface Book {
     summary: string;
 }
 
-export function getAllBooks(): Book[] {
-    return JSON.parse(
-        fs.readFileSync(
-            path.join(process.cwd(), "content", "books", "index.json"),
-            "utf8",
-        ),
-    );
+export async function getAllBooks(): Promise<Book[]> {
+    try{
+        const json_metadata = await head(path.join("json_data", "index.json"));
+        const url = json_metadata.downloadUrl;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch books.json: ${response.statusText}`);
+        }
+    
+        // Parse and return the JSON content
+        const books = await response.json();
+        return books;
+    } catch(error) {
+        throw new Error("index.json not found");
+    }
 }
 
-export function getAllSlugs(): string[] {
-    const data = getAllBooks();
+export async function getAllSlugs(): Promise<string[]> {
+    const data = await getAllBooks();
     return data.map((item) => item.slug);
 }
 
