@@ -1,5 +1,7 @@
 import path from "path";
 import fs from "fs";
+import { head } from '@vercel/blob';
+import { uploadJSONToBlob } from "../scripts/generate-content";
 
 interface ProcessedBook {
     ISBN: string;
@@ -15,13 +17,18 @@ interface ProcessedBook {
 }
 
 // reads the current index.json
-function readExistingBooks() {
-  const jsonPath = path.join(process.cwd(), "content", "books", "index.json");
-  if (fs.existsSync(jsonPath)) {
-    const data = fs.readFileSync(jsonPath, "utf8");
-    return JSON.parse(data);
+async function readExistingBooks() {
+  const jsonPath = path.join("books", "index.json");
+  try{
+    const json_metadata = await head(jsonPath)
+    const json = await fetch(json_metadata.downloadUrl).then((res) => res.json());
+    if (fs.existsSync(jsonPath)) {
+      return json;
+    }
+  } catch(error) {
+    console.log("index.json not found");
+    return [];
   }
-  return [];
 }
 
 function extractDifferences(newBooks: ProcessedBook[], existingBooks: ProcessedBook[]) {
@@ -44,39 +51,35 @@ function extractDifferences(newBooks: ProcessedBook[], existingBooks: ProcessedB
         book.summary !== existingBook.summary
       );
     });
-  
     return { addedBooks, updatedBooks };
 }
 
-// writes updated books back to index.json
-function writeUpdatedBooks(updatedBooks: any[]) {
-  const jsonPath = path.join(process.cwd(), "content", "books", "index.json");
-  fs.writeFileSync(jsonPath, JSON.stringify(updatedBooks, undefined, 2));
-}
-
 export async function processBookData(newBooks: ProcessedBook[]) {
-    const existingBooks = readExistingBooks();
+    // const existingBooks = await readExistingBooks();
 
     // merge and deduplicate by ISBN
-    const { addedBooks, updatedBooks } = extractDifferences(newBooks, existingBooks);
+    // const { addedBooks, updatedBooks } = extractDifferences(newBooks, existingBooks);
 
-    console.log(`Found ${addedBooks.length} new books and ${updatedBooks.length} updated books.`);
+    // console.log(`Found ${addedBooks.length} new books and ${updatedBooks.length} updated books.`);
 
-    const mergedBooks = [
-        ...existingBooks.filter(
-          (book: ProcessedBook) => 
-            !addedBooks.some((added) => added.ISBN === book.ISBN) &&
-            !updatedBooks.some((updated) => updated.ISBN === book.ISBN)
-        ),
-        ...addedBooks,
-        ...updatedBooks,
-    ];
+    // const mergedBooks = [
+    //     ...existingBooks.filter(
+    //       (book: ProcessedBook) => 
+    //         !addedBooks.some((added) => added.ISBN === book.ISBN) &&
+    //         !updatedBooks.some((updated) => updated.ISBN === book.ISBN)
+    //     ),
+    //     ...addedBooks,
+    //     ...updatedBooks,
+    // ];
 
   // Sort books by date
-  mergedBooks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // const bookData = await csvToJSON(csvData);
 
-  // Write updated books back to index.json
-  writeUpdatedBooks(mergedBooks);
+  newBooks.sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+
+  await uploadJSONToBlob(newBooks);
 
   console.log("Books updated successfully.");
 }
