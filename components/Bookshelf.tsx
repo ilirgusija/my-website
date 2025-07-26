@@ -67,11 +67,9 @@ export function Bookshelf({ books }: BookshelfProps) {
 
   React.useEffect(() => {
     if (router.query.slug && router.query.slug.length > 0 && bookIndex === -1) {
-      const idx = books.findIndex((b) =>
-        b.slug
-          .toLowerCase()
-          .includes((router.query.slug as string[])[0].toLowerCase())
-      );
+      const currentSlug = (router.query.slug as string[])[0];
+      const fullSlug = currentSlug.startsWith('/books/') ? currentSlug : `/books/${currentSlug}`;
+      const idx = books.findIndex((b) => b.slug === fullSlug);
       setBookIndex(idx);
     }
   }, []);
@@ -263,9 +261,8 @@ export function Bookshelf({ books }: BookshelfProps) {
                   transformOrigin="right"
                   backgroundColor={book.spineColor}
                   color={book.textColor}
-                  transform={`translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(${
-                    bookIndex === index ? "-60deg" : "0deg"
-                  }) rotateZ(0deg) skew(0deg, 0deg)`}
+                  transform={`translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(${bookIndex === index ? "-60deg" : "0deg"
+                    }) rotateZ(0deg) skew(0deg, 0deg)`}
                   transition={"all 500ms ease"}
                   willChange="auto"
                   filter="brightness(0.8) contrast(2)"
@@ -306,9 +303,8 @@ export function Bookshelf({ books }: BookshelfProps) {
                   flexShrink={0}
                   overflow="hidden"
                   transformOrigin="left"
-                  transform={`translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(${
-                    bookIndex === index ? "30deg" : "88.8deg"
-                  }) rotateZ(0deg) skew(0deg, 0deg)`}
+                  transform={`translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(${bookIndex === index ? "30deg" : "88.8deg"
+                    }) rotateZ(0deg) skew(0deg, 0deg)`}
                   transition={"all 500ms ease"}
                   willChange="auto"
                   filter="brightness(0.8) contrast(2)"

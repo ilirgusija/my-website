@@ -34,7 +34,6 @@ async function uploadCSVtoBlob(csvData: any) {
     contentType: 'text/csv',
     addRandomSuffix: false,
   });
-  console.log('Uploaded CSV to Blob @', result.pathname);
   return result;
 }
 
@@ -66,8 +65,19 @@ export default async function handler(
       await uploadCSVtoBlob(csvData);
       const newBooks = await books();
 
-      // trigger revalidation for the books page
+      // trigger revalidation for the books page and all individual book pages
       await res.revalidate("/books");
+      
+      // Revalidate all individual book pages
+      for (const book of newBooks) {
+        const slug = book.slug.replace('/books/', '');
+        const revalidatePath = `/books/${slug}`;
+        try {
+          await res.revalidate(revalidatePath);
+        } catch (revalidateError) {
+          console.error(`Failed to revalidate ${revalidatePath}:`, revalidateError);
+        }
+      }
       
       res.status(200).json({
         message: 'Successfully updated reading list',

@@ -21,6 +21,6 @@
     "typeRoots": ["./node_modules/@types", "./types"], // Ensure this path is correct
     "types": ["next"] // You can specify 'next' if you want to include its types
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.md"],
   "exclude": ["node_modules"]
 }
