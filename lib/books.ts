@@ -46,8 +46,9 @@ export interface Content<TMetadata = { [key: string]: any }> {
 export type MaybeContent<TMetadata> = Content<TMetadata> | undefined;
 
 export async function getBook(slug: string, books: Book[]): Promise<MaybeContent<Book>> {
-    slug = path.join("/books/", slug);
-    const book = books.find(b => b.slug === slug); // Adjusted to find the book by slug in the array
+    // Ensure the slug has the /books/ prefix for matching
+    const fullSlug = slug.startsWith('/books/') ? slug : `/books/${slug}`;
+    const book = books.find(b => b.slug === fullSlug);
     if (!book) {
         return undefined;
     }

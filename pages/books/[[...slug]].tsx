@@ -106,10 +106,15 @@ Books.getLayout = (page: JSX.Element) => (
 );
 
 export async function getStaticPaths() {
-    const paths = getAllSlugs();
+    const paths = await getAllSlugs();
     return {
-        paths: [{ params: { slug: undefined } }, ...await paths],
-        fallback: false,
+        paths: [
+            { params: { slug: undefined } },
+            ...paths.map(slug => ({
+                params: { slug: [slug.replace('/books/', '')] }
+            }))
+        ],
+        fallback: 'blocking',
     };
 }
 
@@ -122,6 +127,7 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
         };
     }
     const books = await getAllBooks();
+
     if (!params || !params.slug || params.slug.length === 0) {
         return {
             props: {
@@ -130,14 +136,16 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
             revalidate: 60
         };
     }
-    const book = await getBook(params.slug[0] as string, books);
+
+    const slug = params.slug[0] as string;
+    const book = await getBook(slug, books);
+
     if (!book) {
         return {
-            redirect: {
-                destination: "/books",
-            },
+            notFound: true,
         };
     }
+
     return {
         props: { books, book },
         revalidate: 60
