@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
 import { put, head } from '@vercel/blob';
 import Vibrant from 'node-vibrant'; // For dominant colors
+import { uploadVersionedData, fetchVersionedData } from '../lib/data-versioning';
 
 
 interface GoogleBooksResponse {
@@ -49,12 +50,10 @@ async function fetchCSVFromBlob(): Promise<string> {
 }
 
 export async function uploadJSONToBlob(data: object) {
-    const jsonData = JSON.stringify(data, null, 2);
-    await put(`json_data/index.json`, jsonData, {
-        access: 'public',
-        contentType: 'application/json',
-        addRandomSuffix: false,
-    });
+    console.log('Uploading versioned JSON data...');
+    const version = await uploadVersionedData(data, 'json_data/index.json');
+    console.log('JSON uploaded with version:', version.version);
+    return version;
 }
 
 async function uploadImageToBlob(fileName: string, imageBuffer: Buffer): Promise<string> {
@@ -139,14 +138,18 @@ async function fetchBookQualities(isbn: string) {
 
 // Function to parse CSV data and fetch book details
 export async function csvToJSON(csvData: string | Buffer): Promise<ProcessedBook[]> {
+    console.log('Parsing CSV data...');
     const records = parse(csvData, {
         columns: true,
         skip_empty_lines: true,
     });
+    
+    console.log(`Parsed ${records.length} records from CSV`);
 
     const books = [];
     for (let record of records) {
         if (record["Finished Reading"] && !(record["Did Not Finish"] == "Y")) {
+            console.log(`Processing book: ${record["Title"]} (ISBN: ${record["ISBN-13"]})`);
             const {coverImage, spineColor, textColor }  = await fetchBookQualities(record["ISBN-13"]);
             books.push({
                 ISBN: record["ISBN-13"],
@@ -162,29 +165,49 @@ export async function csvToJSON(csvData: string | Buffer): Promise<ProcessedBook
             });
         }
     }
+    console.log(`Successfully processed ${books.length} books`);
     return books;
 }
 
 export async function books() {
-    const csvData = await fetchCSVFromBlob();
-    const bookData = await csvToJSON(csvData);
+    try {
+        console.log('Fetching CSV from blob...');
+        const csvData = await fetchCSVFromBlob();
+        console.log('CSV fetched successfully, processing books...');
+        
+        const bookData = await csvToJSON(csvData);
+        console.log(`Processed ${bookData.length} books from CSV`);
 
-    bookData.sort((a, b) => {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
+        bookData.sort((a, b) => {
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
 
-    await uploadJSONToBlob(bookData);
-    return bookData;
+        console.log('Uploading processed books to JSON blob...');
+        await uploadJSONToBlob(bookData);
+        console.log('JSON uploaded successfully');
+        
+        return bookData;
+    } catch (error) {
+        console.error('Error in books() function:', error);
+        throw error;
+    }
 }
 
 async function main() {
-    try{
-        await head(path.join("json_data", "index.json"));
+    try {
+        // Check if versioned data exists
+        const existingData = await fetchVersionedData<ProcessedBook[]>("json_data/index.json");
+        if (existingData) {
+            console.log(`Found existing books data version ${existingData.version.version} with ${existingData.data.length} books`);
+            console.log("Skipping generation as data already exists");
+            return;
+        }
+    } catch(error) {
+        console.log("No existing versioned data found, generating fresh data...");
     }
-    catch(error) {
-        console.log("json does not exist");
-        await books();
-    }
+    
+    console.log("Generating fresh books data...");
+    await books();
 }
 
 main();

@@ -1,5 +1,6 @@
 import path from "path";
 import { head } from "@vercel/blob";
+import { fetchVersionedData } from "./data-versioning";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
 
@@ -17,19 +18,18 @@ export interface Book {
 }
 
 export async function getAllBooks(): Promise<Book[]> {
-    try{
-        const json_metadata = await head(path.join("json_data", "index.json"));
-        const url = json_metadata.downloadUrl;
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch books.json: ${response.statusText}`);
+    try {
+        const versionedData = await fetchVersionedData<Book[]>("json_data/index.json");
+        
+        if (!versionedData) {
+            throw new Error("Failed to fetch versioned books data");
         }
-    
-        // Parse and return the JSON content
-        const books = await response.json();
-        return books;
+        
+        console.log(`Fetched books data version ${versionedData.version.version} with ${versionedData.data.length} books`);
+        return versionedData.data;
     } catch(error) {
-        throw new Error("index.json not found");
+        console.error("Error fetching books:", error);
+        throw new Error("Books data not found or corrupted");
     }
 }
 
