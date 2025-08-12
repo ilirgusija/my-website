@@ -15,6 +15,7 @@ import { Book, getAllBooks, getAllSlugs, getBook, Content } from "../../lib/book
 import { Bookshelf } from "../../components/Bookshelf";
 import { NextSeo } from "next-seo";
 import type { NextPageWithLayout } from "../_app";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
 
 interface BooksProps {
     books: Book[];
@@ -43,8 +44,8 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }: BooksProps) => {
                             </Text>
                         </VStack>
                     </Flex>
-                    <Prose sx={{ whiteSpace: 'pre-wrap' }}>
-                        {book.source}
+                    <Prose>
+                        <MarkdownRenderer>{book.source}</MarkdownRenderer>
                     </Prose>
                 </Stack>
             </>
@@ -80,8 +81,8 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }: BooksProps) => {
                                         <Text color="#666">
                                             Read: {book.date} • Rating: {book.rating}/10
                                         </Text>
-                                        <Prose sx={{ whiteSpace: 'pre-wrap' }}>
-                                            {book.summary}
+                                        <Prose>
+                                            <MarkdownRenderer>{book.summary}</MarkdownRenderer>
                                         </Prose>
                                     </VStack>
                                 </Flex>
