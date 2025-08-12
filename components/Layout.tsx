@@ -73,6 +73,9 @@ function Layout({ children }: PropsWithChildren) {
             <Navigation link="https://github.com/ilirgusija" isExternal>
               GitHub
             </Navigation>
+            <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
+              LinkedIn
+            </Navigation>
           </VStack>
         </VStack>
       </Flex>

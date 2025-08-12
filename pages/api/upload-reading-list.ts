@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { books } from "../../scripts/generate-content";
 import { put } from '@vercel/blob';
+import { uploadVersionedData, generateChecksum } from '../../lib/data-versioning';
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
 
@@ -34,7 +35,66 @@ async function uploadCSVtoBlob(csvData: any) {
     contentType: 'text/csv',
     addRandomSuffix: false,
   });
+  console.log('Uploaded CSV to Blob @', result.pathname);
   return result;
+}
+
+// Generate a checksum for the CSV data to validate it's the same
+function generateCSVChecksum(csvData: string): string {
+  return generateChecksum(csvData);
+}
+
+// Fetch CSV from blob storage (replicated from generate-content.ts)
+async function fetchCSVFromBlob(): Promise<string> {
+  const { head } = await import('@vercel/blob');
+  const path = require('path');
+  
+  try {
+    const headResult = await head(path.join("csv_data","reading_data.csv"));
+    const csvUrl = headResult.downloadUrl;
+    const response = await fetch(csvUrl);
+  
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+    }
+    const csvData = await response.text();
+    return csvData;
+  } catch(error) {
+    throw new Error("reading_data.csv not found");
+  }
+}
+
+// Poll for CSV availability with exponential backoff
+async function waitForCSVAvailability(expectedChecksum: string, maxAttempts: number = 10): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`Attempt ${attempt}: Checking CSV availability...`);
+      
+      // Fetch the actual CSV content
+      const csvContent = await fetchCSVFromBlob();
+      const actualChecksum = generateCSVChecksum(csvContent);
+      
+      console.log(`Expected checksum: ${expectedChecksum}`);
+      console.log(`Actual checksum: ${actualChecksum}`);
+      
+      if (actualChecksum === expectedChecksum) {
+        console.log('CSV content validated successfully!');
+        return true;
+      } else {
+        console.log('CSV content mismatch, retrying...');
+      }
+      
+    } catch (error) {
+      console.log(`Attempt ${attempt} failed:`, error instanceof Error ? error.message : String(error));
+    }
+    
+    // Exponential backoff: 500ms, 1s, 2s, 4s, 8s, etc.
+    const delay = Math.min(500 * Math.pow(2, attempt - 1), 10000);
+    console.log(`Waiting ${delay}ms before next attempt...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  
+  throw new Error(`CSV validation failed after ${maxAttempts} attempts`);
 }
 
 export default async function handler(
@@ -62,10 +122,41 @@ export default async function handler(
     }
     
     try{
+      console.log('Uploading CSV to blob...');
       await uploadCSVtoBlob(csvData);
+      console.log('CSV uploaded successfully, validating availability...');
+      
+      // Generate checksum of the uploaded data
+      const expectedChecksum = generateCSVChecksum(csvData);
+      console.log('Expected CSV checksum:', expectedChecksum);
+      
+      // Wait for CSV to be available and validate content
+      await waitForCSVAvailability(expectedChecksum);
+      
       const newBooks = await books();
+      console.log(`Successfully processed ${newBooks.length} books`);
+
+      // Verify versioned JSON was uploaded and contains the expected data
+      try {
+        const { fetchVersionedData } = await import('../../lib/data-versioning');
+        const versionedData = await fetchVersionedData<typeof newBooks>('json_data/index.json');
+        
+        if (!versionedData) {
+          throw new Error('Failed to fetch versioned JSON data');
+        }
+        
+        if (versionedData.data.length !== newBooks.length) {
+          throw new Error(`JSON validation failed: expected ${newBooks.length} books, got ${versionedData.data.length}`);
+        }
+        
+        console.log(`JSON content validation successful - version ${versionedData.version.version}`);
+      } catch (verifyError) {
+        console.error('JSON verification failed:', verifyError);
+        throw new Error(`JSON upload verification failed: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`);
+      }
 
       // trigger revalidation for the books page and all individual book pages
+      console.log('Revalidating pages...');
       await res.revalidate("/books");
       
       // Revalidate all individual book pages
@@ -84,9 +175,9 @@ export default async function handler(
         recordsProcessed: newBooks.length,
       });
     } catch(error) {
-      console.error('Error uploading CSV to Blob:', error);
+      console.error('Error in CSV processing pipeline:', error);
       res.status(500).json({
-        message: 'Error uploading CSV to Blob',
+        message: 'Error processing CSV and updating books',
         error: error instanceof Error ? error.message : String(error),
       });
     }
