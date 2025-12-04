@@ -1,3 +1,4 @@
+import "katex/dist/katex.css"; 
 import type { AppProps } from "next/app";
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import { Prose, withProse } from "@nikolovlazar/chakra-ui-prose";
@@ -27,6 +28,29 @@ const theme = extendTheme(
       heading: lora.style.fontFamily,
       body: lora.style.fontFamily,
     },
+    styles: {
+      global: {
+        body: {
+          bg: "white",
+          color: "gray.800",
+        },
+      },
+    },
+    components: {
+      Heading: {
+        baseStyle: {
+          fontWeight: "600",
+          letterSpacing: "-0.02em",
+        },
+      },
+      Link: {
+        baseStyle: {
+          _hover: {
+            textDecoration: "underline",
+          },
+        },
+      },
+    },
   },
   withProse({
     baseStyle: {
@@ -40,6 +64,11 @@ const theme = extendTheme(
       a: {
         color: "blue.500",
       },
+      // // Exclude rehype-katex classes
+      // ".language-math, .language-math-inline": {
+      //   fontFamily: "KaTeX_Main, Times New Roman, serif",
+      //   fontSize: "1em",
+      // },
     },
   })
 );

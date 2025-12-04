@@ -31,7 +31,7 @@ export function Bookshelf({ books }: BookshelfProps) {
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [booksInViewport, setBooksInViewport] = React.useState(0);
   const scrollEvents = useBreakpointValue({
-    base: { start: "touchstart", stop: "touchend" },
+    base: { start: "passive", stop: "touchend" },
     sm: { start: "mouseenter", stop: "mouseleave" },
   });
 

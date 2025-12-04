@@ -61,11 +61,19 @@ export async function uploadVersionedData<T>(
 // Fetch versioned data
 export async function fetchVersionedData<T>(path: string): Promise<VersionedData<T> | null> {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not set");
+    } else {
+      console.log("BLOB_READ_WRITE_TOKEN is set");
+    }
+
     const metadata = await head(path);
     const response = await fetch(metadata.downloadUrl);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch data: ${response.statusText}`);
+    } else {
+      console.log(`Data fetched successfully: ${response.statusText}`);
     }
 
     const versionedData: VersionedData<T> = await response.json();

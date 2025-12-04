@@ -1,0 +1,117 @@
+name: Sync Research to Vercel Blob
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  repository_dispatch:
+    types: [sync-papers] # Triggered when papers repo pushes to main
+  schedule:
+    # Run daily at midnight UTC to check for updates (backup)
+    - cron: '0 0 * * *'
+
+jobs:
+  sync-papers:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout website repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Checkout papers repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PAPERS_REPO }}
+          token: ${{ secrets.PAPERS_TOKEN }}
+          path: research-repo
+
+      - name: Sync Research PDFs to Vercel Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          PAPERS_REPO: ${{ secrets.PAPERS_REPO }}
+        run: |
+          # Create sync script
+          cat > sync-papers.js << 'EOF'
+          const { put } = require('@vercel/blob');
+          const fs = require('fs');
+          const path = require('path');
+          
+          const researchDir = path.join(process.cwd(), 'research-repo');
+          const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+          
+          if (!blobToken) {
+            console.error('BLOB_READ_WRITE_TOKEN is not set');
+            process.exit(1);
+          }
+          
+          async function syncPDFs() {
+            try {
+              // Find all PDF files in the papers repo
+              const findPDFs = (dir, fileList = []) => {
+                const files = fs.readdirSync(dir);
+                files.forEach(file => {
+                  const filePath = path.join(dir, file);
+                  const stat = fs.statSync(filePath);
+                  if (stat.isDirectory()) {
+                    findPDFs(filePath, fileList);
+                  } else if (file.endsWith('.pdf')) {
+                    fileList.push(filePath);
+                  }
+                });
+                return fileList;
+              };
+              
+              const pdfFiles = findPDFs(researchDir);
+              console.log(`Found ${pdfFiles.length} PDF files`);
+              
+              for (const pdfPath of pdfFiles) {
+                const relativePath = path.relative(researchDir, pdfPath);
+                const blobPath = `research/${relativePath}`;
+                const pdfBuffer = fs.readFileSync(pdfPath);
+                
+                console.log(`Uploading ${relativePath} to ${blobPath}...`);
+                
+                try {
+                  await put(blobPath, pdfBuffer, {
+                    access: 'public',
+                    contentType: 'application/pdf',
+                    addRandomSuffix: false,
+                    token: blobToken,
+                  });
+                  console.log(`✓ Successfully uploaded ${relativePath}`);
+                } catch (error) {
+                  console.error(`✗ Failed to upload ${relativePath}:`, error.message);
+                }
+              }
+              
+              console.log('PDF sync completed');
+            } catch (error) {
+              console.error('Error syncing PDFs:', error);
+              process.exit(1);
+            }
+          }
+          
+          syncPDFs();
+          EOF
+          
+          node sync-papers.js
+
+      - name: Trigger Vercel deployment (optional)
+        if: env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx vercel --token $VERCEL_TOKEN --prod --yes || echo "Deployment trigger failed (this is optional)"
+

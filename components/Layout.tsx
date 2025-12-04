@@ -64,7 +64,9 @@ function Layout({ children }: PropsWithChildren) {
               NAVIGATION
             </Text>
             <Navigation link="/">Home</Navigation>
+            <Navigation link="/research">Research</Navigation>
             <Navigation link="/books">Books</Navigation>
+            <Navigation link="/writing">Writing</Navigation>
           </VStack>
           <VStack align="flex-start">
             <Text fontWeight="bold" fontSize="smaller">
@@ -79,7 +81,7 @@ function Layout({ children }: PropsWithChildren) {
           </VStack>
         </VStack>
       </Flex>
-      <Container width={{ md: "container.md" }} position="relative">
+      <Container width="100%" maxW="2000px" position="relative" px={{ base: 4, md: 6, lg: 0 }}>
         <Box
           width="100%"
           bg="white"
@@ -107,8 +109,9 @@ function Layout({ children }: PropsWithChildren) {
             <Flex justify="space-between" width="100%">
               <HStack spacing={8}>
                 <Navigation link="/">Home</Navigation>
-                <Navigation link="/writing">Writing</Navigation>
+                <Navigation link="/research">Research</Navigation>
                 <Navigation link="/books">Books</Navigation>
+                <Navigation link="/writing">Writing</Navigation>
               </HStack>
               <Menu>
                 <MenuButton
@@ -122,20 +125,18 @@ function Layout({ children }: PropsWithChildren) {
                   <MenuGroup title="NAVIGATION">
                     <VStack align="flex-start" px={4} spacing={3} mb={4}>
                       <Navigation link="/">Home</Navigation>
-                      <Navigation link="/writing">Writing</Navigation>
+                      <Navigation link="/research">Research</Navigation>
                       <Navigation link="/books">Books</Navigation>
+                      <Navigation link="/writing">Writing</Navigation>
                     </VStack>
                   </MenuGroup>
                   <MenuGroup title="FIND ME ON">
                     <VStack align="flex-start" px={4} spacing={3} mb={2}>
-                      <Navigation
-                        link="https://twitter.com/majmudaradam"
-                        isExternal
-                      >
-                        Twitter
-                      </Navigation>
-                      <Navigation link="https://github.com/adam-maj" isExternal>
+                      <Navigation link="https://github.com/ilirgusija" isExternal>
                         GitHub
+                      </Navigation>
+                      <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
+                        LinkedIn
                       </Navigation>
                     </VStack>
                   </MenuGroup>

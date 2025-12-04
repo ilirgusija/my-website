@@ -11,11 +11,12 @@ import {
 import { GetStaticPropsContext } from "next";
 import Layout from "../../components/Layout";
 import { Prose } from "@nikolovlazar/chakra-ui-prose";
-import { Book, getAllBooks, getAllSlugs, getBook, Content } from "../../lib/books";
+import { Book, getAllBooks, getBookSlugsOnly, getBook, Content } from "../../lib/books";
 import { Bookshelf } from "../../components/Bookshelf";
 import { NextSeo } from "next-seo";
 import type { NextPageWithLayout } from "../_app";
 import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { PaginatedBooksList } from "../../components/PaginatedBooksList";
 
 interface BooksProps {
     books: Book[];
@@ -54,42 +55,10 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }: BooksProps) => {
     return (
         <>
             <NextSeo title="Books" />
-            <Stack spacing={5}>
-                {books
-                    .slice()
-                    .sort((a, b) => b.rating - a.rating)
-                    .map((book, index) => (
-                        <Stack key={book.title} scrollMarginTop={20}>
-                            <Stack>
-                                {index > 0 && <Divider mb={3} width="100%" />}
-                                <Flex direction="row" align="flex-start" gap={6}>
-                                    <Image
-                                        border="1px solid"
-                                        borderColor="gray.200"
-                                        src={book.coverImage}
-                                        alt={book.title}
-                                        height={{ base: "100px", sm: "140px", md: "160px" }}
-                                    />
-
-                                    <VStack align="flex-start" flexGrow={1}>
-                                        <Link href={book.slug}>
-                                            <Heading size="md">{book.title}</Heading>
-                                        </Link>
-                                        <Text color="#999" size="md">
-                                            {book.author}
-                                        </Text>
-                                        <Text color="#666">
-                                            Read: {book.date} • Rating: {book.rating}/10
-                                        </Text>
-                                        <Prose>
-                                            <MarkdownRenderer>{book.summary}</MarkdownRenderer>
-                                        </Prose>
-                                    </VStack>
-                                </Flex>
-                            </Stack>
-                        </Stack>
-                    ))}
-            </Stack>
+            <PaginatedBooksList
+                books={books.slice().sort((a, b) => b.rating - a.rating)}
+                booksPerPage={5}
+            />
         </>
     );
 };
@@ -98,7 +67,7 @@ export default Books;
 
 Books.getLayout = (page: JSX.Element) => (
     <Layout>
-        <Flex direction="column" gap={8}>
+        <Flex direction="column" gap={12}>
             <Bookshelf books={page.props.books} />
             <Divider />
             {page}
@@ -107,11 +76,11 @@ Books.getLayout = (page: JSX.Element) => (
 );
 
 export async function getStaticPaths() {
-    const paths = await getAllSlugs();
+    const paths = await getBookSlugsOnly();
     return {
         paths: [
             { params: { slug: undefined } },
-            ...paths.map(slug => ({
+            ...paths.map((slug: string) => ({
                 params: { slug: [slug.replace('/books/', '')] }
             }))
         ],
