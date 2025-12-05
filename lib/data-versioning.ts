@@ -136,7 +136,13 @@ export async function fetchVersionedData<T>(path: string): Promise<VersionedData
 // Get latest version info
 export async function getLatestVersion(path: string): Promise<DataVersion | null> {
   try {
-    const metadata = await head(`${path}.version`);
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not set");
+    }
+
+    const metadata = await head(`${path}.version`, {
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
     const response = await fetch(metadata.downloadUrl);
     
     if (!response.ok) {
