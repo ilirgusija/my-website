@@ -39,14 +39,14 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
     affiliation: "Queen's University",
     bio: [
       "I'm a 2nd-year master's student at Queen's University, pursuing a Master of Applied Science in Mathematics & Engineering.",
-      
+
     ],
     email: "ilir.gusija@queensu.ca",
     github: "ilirgusija",
     linkedin: "ilir-gusija",
   };
 
-    return (
+  return (
     <>
       <NextSeo
         title="Ilir Gusija"
@@ -75,13 +75,13 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
             <VStack align={{ base: "center", md: "flex-start" }} spacing={2}>
               <Heading size="2xl" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.name}
-                </Heading>
+              </Heading>
               <Text fontSize="xl" color="gray.600" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.title}
               </Text>
               <Text fontSize="md" color="gray.500" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.affiliation}
-            </Text>
+              </Text>
             </VStack>
 
             <HStack spacing={4} flexWrap="wrap" justify={{ base: "center", md: "flex-start" }}>
@@ -116,7 +116,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
               </Button>
               <Button
                 as={Link}
-                href="/cv.pdf"
+                href="/cv"
                 leftIcon={<Icon as={FiFileText} />}
                 size="sm"
                 variant="outline"
@@ -181,7 +181,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
         </Box>
       </Container>
     </>
-    );
+  );
 };
 
 HomePage.getLayout = (page) => (
@@ -193,7 +193,7 @@ HomePage.getLayout = (page) => (
 export default HomePage;
 
 export const getStaticProps: GetStaticProps = async () => {
-  const newsItems = getAllNewsItems();
+  const newsItems = await getAllNewsItems();
 
   return {
     props: {

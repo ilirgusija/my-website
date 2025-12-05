@@ -20,17 +20,7 @@ export interface Research {
 }
 
 // Dev fallback data for local development
-export const devResearch: Research[] = [
-  {
-    title: "Example Research in Progress",
-    authors: ["Your Name"],
-    abstract: "This is an example research project that demonstrates the research preview component.",
-    status: "in-progress",
-    pdfPath: "example-paper.pdf",
-    lastUpdated: "2024-01-15",
-    slug: "example-paper",
-  },
-];
+export const devResearch: Research[] = [];
 
 export function getResearchSlugs(): string[] {
   if (!fs.existsSync(researchDirectory)) {
