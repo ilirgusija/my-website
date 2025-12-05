@@ -254,7 +254,7 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                                         type="submit"
                                         size="sm"
                                         variant="outline"
-                                        isDisabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
+                                        isDisabled={!jumpToPage || isNaN(Number(jumpToPage)) || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
                                     >
                                         Go
                                     </Button>
