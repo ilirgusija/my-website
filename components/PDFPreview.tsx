@@ -1,12 +1,12 @@
-import { Box, Flex, Icon, Text, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, Icon, Text, useDisclosure, ResponsiveValue } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiExternalLink, FiFileText } from "react-icons/fi";
 
 interface PDFPreviewProps {
   pdfUrl: string;
   title: string;
-  width?: string | number;
-  height?: string | number;
+  width?: ResponsiveValue<string | number>;
+  height?: ResponsiveValue<string | number>;
 }
 
 export function PDFPreview({ pdfUrl, title, width = "100%", height = "400px" }: PDFPreviewProps) {

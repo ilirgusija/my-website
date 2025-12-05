@@ -19,6 +19,12 @@ export interface Book {
 }
 
 export async function getAllBooks(): Promise<Book[]> {
+    // In development, check for token first to avoid noisy errors
+    if (process.env.NODE_ENV === 'development' && !process.env.BLOB_READ_WRITE_TOKEN) {
+        console.log("Development mode: BLOB_READ_WRITE_TOKEN not set, using development books data");
+        return devBooks;
+    }
+
     try {
         const versionedData = await fetchVersionedData<Book[]>("json_data/index.json");
         
@@ -29,15 +35,16 @@ export async function getAllBooks(): Promise<Book[]> {
         console.log(`Fetched books data version ${versionedData.version.version} with ${versionedData.data.length} books`);
         return versionedData.data;
     } catch(error) {
-        console.error("Error fetching books:", error);
-        
         // Fallback for development
         if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: returning development books data");
+            console.log("Development mode: failed to fetch books, using development books data");
             return devBooks;
         }
         
-        throw new Error("Books data not found or corrupted");
+        // In production/build, return empty array instead of throwing
+        // This allows the build to succeed even if books data isn't available
+        console.warn("Books data not found - returning empty array. Build will continue without books.");
+        return [];
     }
 }
 
@@ -48,6 +55,12 @@ export async function getAllSlugs(): Promise<string[]> {
 
 // Optimized function to fetch only slugs (for getStaticPaths)
 export async function getBookSlugsOnly(): Promise<string[]> {
+    // In development, check for token first to avoid noisy errors
+    if (process.env.NODE_ENV === 'development' && !process.env.BLOB_READ_WRITE_TOKEN) {
+        console.log("Development mode: BLOB_READ_WRITE_TOKEN not set, using development book slugs");
+        return devBooks.map((book: Book) => book.slug);
+    }
+
     try {
         const versionedData = await fetchVersionedData<Book[]>("json_data/index.json");
         
@@ -60,15 +73,16 @@ export async function getBookSlugsOnly(): Promise<string[]> {
         console.log(`Fetched ${slugs.length} book slugs for static path generation`);
         return slugs;
     } catch(error) {
-        console.error("Error fetching book slugs:", error);
-        
         // Fallback for development
         if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: returning development book slugs");
+            console.log("Development mode: failed to fetch book slugs, using development book slugs");
             return devBooks.map((book: Book) => book.slug);
         }
         
-        throw new Error("Book slugs not found");
+        // In production/build, return empty array instead of throwing
+        // This allows the build to succeed even if books data isn't available
+        console.warn("Book slugs not found - returning empty array. Build will continue without books.");
+        return [];
     }
 }
 

@@ -123,7 +123,7 @@ jobs:
         if: env.VERCEL_TOKEN != ''
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_USER_ID: ${{ secrets.VERCEL_USER_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           npx vercel --token $VERCEL_TOKEN --prod --yes || echo "Deployment trigger failed (this is optional)"

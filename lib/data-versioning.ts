@@ -1,4 +1,9 @@
 import { put, head } from '@vercel/blob';
+import { createHash } from 'crypto';
+
+// In-memory cache for versioned data to avoid repeated fetches during build/request
+const dataCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
 
 export interface DataVersion {
   timestamp: number;
@@ -19,9 +24,8 @@ export function generateVersion(): string {
 
 // Generate checksum for data
 export function generateChecksum(data: any): string {
-  const crypto = require('crypto');
   const dataString = typeof data === 'string' ? data : JSON.stringify(data);
-  return crypto.createHash('md5').update(dataString).digest('hex');
+  return createHash('md5').update(dataString).digest('hex');
 }
 
 // Upload versioned data
@@ -61,22 +65,57 @@ export async function uploadVersionedData<T>(
 // Fetch versioned data
 export async function fetchVersionedData<T>(path: string): Promise<VersionedData<T> | null> {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      throw new Error("BLOB_READ_WRITE_TOKEN is not set");
-    } else {
-      console.log("BLOB_READ_WRITE_TOKEN is set");
+    // Check cache first
+    const cached = dataCache.get(path);
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      return cached.data as VersionedData<T>;
     }
 
-    const metadata = await head(path);
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not set");
+    }
+
+    // Try to get blob metadata - this will throw if blob doesn't exist
+    let metadata;
+    try {
+      metadata = await head(path, {
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+    } catch (headError: any) {
+      // If blob doesn't exist, that's fine - return null
+      if (headError?.message?.includes("does not exist") || headError?.statusCode === 404) {
+        if (process.env.NODE_ENV === 'development') {
+          // Silently handle missing blobs in development
+          return null;
+        }
+        throw headError;
+      }
+      throw headError;
+    }
+
+    // Fetch the actual data from the download URL
     const response = await fetch(metadata.downloadUrl);
     
     if (!response.ok) {
+      // If we get Forbidden, the blob might not exist or be accessible
+      if (response.status === 403 || response.status === 404) {
+        if (process.env.NODE_ENV === 'development') {
+          // Silently handle in development
+          return null;
+        }
+        throw new Error(`Blob not accessible: ${response.statusText}`);
+      }
       throw new Error(`Failed to fetch data: ${response.statusText}`);
-    } else {
-      console.log(`Data fetched successfully: ${response.statusText}`);
     }
 
     const versionedData: VersionedData<T> = await response.json();
+    
+    // Cache the result
+    dataCache.set(path, {
+      data: versionedData,
+      timestamp: Date.now(),
+      ttl: CACHE_TTL,
+    });
     
     // Validate checksum
     const expectedChecksum = generateChecksum(versionedData.data);
@@ -86,7 +125,10 @@ export async function fetchVersionedData<T>(path: string): Promise<VersionedData
 
     return versionedData;
   } catch (error) {
-    console.error(`Failed to fetch versioned data from ${path}:`, error);
+    // Only log errors in production - in development, we'll fall back to dev data
+    if (process.env.NODE_ENV !== 'development') {
+      console.error(`Failed to fetch versioned data from ${path}:`, error);
+    }
     return null;
   }
 }

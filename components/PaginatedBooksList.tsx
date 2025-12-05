@@ -129,6 +129,12 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                                     mr={{ base: 0, md: 8 }}
                                     mb={{ base: 4, md: 4 }}
                                     display={{ base: "block", md: "inline" }}
+                                    onError={(e) => {
+                                      // Fallback to a placeholder if image fails to load
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = '/books/null.jpg';
+                                    }}
+                                    crossOrigin="anonymous"
                                 />
 
                                 <Box>

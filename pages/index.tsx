@@ -47,7 +47,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
     linkedin: "ilir-gusija",
   };
 
-  return (
+    return (
     <>
       <NextSeo
         title="Ilir Gusija"
@@ -76,13 +76,13 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
             <VStack align={{ base: "center", md: "flex-start" }} spacing={2}>
               <Heading size="2xl" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.name}
-              </Heading>
+                </Heading>
               <Text fontSize="xl" color="gray.600" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.title}
               </Text>
               <Text fontSize="md" color="gray.500" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.affiliation}
-              </Text>
+            </Text>
             </VStack>
 
             <HStack spacing={4} flexWrap="wrap" justify={{ base: "center", md: "flex-start" }}>
@@ -182,7 +182,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
         </Box>
       </Container>
     </>
-  );
+    );
 };
 
 HomePage.getLayout = (page) => (

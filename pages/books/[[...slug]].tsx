@@ -84,7 +84,7 @@ export async function getStaticPaths() {
                 params: { slug: [slug.replace('/books/', '')] }
             }))
         ],
-        fallback: 'blocking',
+        fallback: false, // Pre-render all pages at build time for better performance
     };
 }
 
@@ -99,12 +99,12 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
     const books = await getAllBooks();
 
     if (!params || !params.slug || params.slug.length === 0) {
-        return {
-            props: {
-                books,
-            },
-            revalidate: 60
-        };
+    return {
+        props: {
+            books,
+        },
+        revalidate: 3600 // Revalidate every hour instead of every minute
+    };
     }
 
     const slug = params.slug[0] as string;
@@ -118,6 +118,6 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
 
     return {
         props: { books, book },
-        revalidate: 60
+        revalidate: 3600 // Revalidate every hour instead of every minute
     };
 }

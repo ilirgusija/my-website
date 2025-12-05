@@ -162,8 +162,8 @@ export async function extractAndGenerateMetadata(
   }
 }
 
-// If run directly
-if (require.main === module) {
+// If run directly (ES module way)
+if (import.meta.url === `file://${process.argv[1]}`) {
   const researchRepoPath = process.argv[2] || path.join(process.cwd(), "research-repo");
   extractAndGenerateMetadata(researchRepoPath)
     .then(() => {

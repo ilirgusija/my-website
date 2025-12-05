@@ -31,7 +31,7 @@ export function Bookshelf({ books }: BookshelfProps) {
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [booksInViewport, setBooksInViewport] = React.useState(0);
   const scrollEvents = useBreakpointValue({
-    base: { start: "passive", stop: "touchend" },
+    base: { start: "touchstart", stop: "touchend" },
     sm: { start: "mouseenter", stop: "mouseleave" },
   });
 
@@ -126,22 +126,31 @@ export function Bookshelf({ books }: BookshelfProps) {
       }
     };
 
+    // Use passive option for touch events to improve scroll performance
+    const eventOptions = currentScrollEvents.start === "touchstart"
+      ? { passive: true }
+      : false;
+
     currentScrollRightRef!.addEventListener(
       currentScrollEvents.start,
-      setScrollRightInterval
+      setScrollRightInterval,
+      eventOptions
     );
     currentScrollRightRef!.addEventListener(
       currentScrollEvents.stop,
-      clearScrollInterval
+      clearScrollInterval,
+      eventOptions
     );
 
     currentScrollLeftRef!.addEventListener(
       currentScrollEvents.start,
-      setScrollLeftInterval
+      setScrollLeftInterval,
+      eventOptions
     );
     currentScrollLeftRef!.addEventListener(
       currentScrollEvents.stop,
-      clearScrollInterval
+      clearScrollInterval,
+      eventOptions
     );
 
     return () => {
@@ -346,6 +355,12 @@ export function Bookshelf({ books }: BookshelfProps) {
                       transition: "all 500ms ease",
                       willChange: "auto",
                     }}
+                    onError={(e) => {
+                      // Fallback to a placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/books/null.jpg';
+                    }}
+                    crossOrigin="anonymous"
                   />
                 </Box>
               </button>

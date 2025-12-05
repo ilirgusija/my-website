@@ -194,6 +194,16 @@ export async function books() {
 }
 
 async function main() {
+    // Check if we have the required environment variables
+    const requiredEnvVars = ['BLOB_READ_WRITE_TOKEN', 'BLOB_URL', 'GOOGLE_BOOKS_API_KEY'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+        console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
+        console.warn("Skipping data generation - books data will not be available");
+        return;
+    }
+
     try {
         // Check if versioned data exists
         const existingData = await fetchVersionedData<ProcessedBook[]>("json_data/index.json");
@@ -217,19 +227,13 @@ async function main() {
     
     console.log("Generating fresh books data...");
     
-    // In development, check if we have the required environment variables
-    if (process.env.NODE_ENV === 'development') {
-        const requiredEnvVars = ['BLOB_URL', 'GOOGLE_BOOKS_API_KEY'];
-        const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-        
-        if (missingVars.length > 0) {
-            console.warn(`Missing environment variables for development: ${missingVars.join(', ')}`);
-            console.warn("Skipping data generation in development mode");
-            return;
-        }
+    try {
+        await books();
+    } catch (error: any) {
+        // Don't fail the build if data generation fails
+        console.error("Failed to generate books data:", error.message);
+        console.warn("Build will continue without books data");
     }
-    
-    await books();
 }
 
 main();
