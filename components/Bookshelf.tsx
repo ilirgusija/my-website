@@ -72,7 +72,7 @@ export function Bookshelf({ books }: BookshelfProps) {
       const idx = books.findIndex((b) => b.slug === fullSlug);
       setBookIndex(idx);
     }
-  }, []);
+  }, [router.query.slug, bookIndex, books]);
 
   React.useEffect(() => {
     if (bookIndex === -1) {
@@ -126,46 +126,62 @@ export function Bookshelf({ books }: BookshelfProps) {
       }
     };
 
+    // Use passive option for touch events to improve scroll performance
+    const eventOptions: boolean | AddEventListenerOptions | undefined =
+      currentScrollEvents.start === "touchstart"
+        ? { passive: true }
+        : false;
+
     currentScrollRightRef!.addEventListener(
       currentScrollEvents.start,
-      setScrollRightInterval
+      setScrollRightInterval,
+      eventOptions
     );
     currentScrollRightRef!.addEventListener(
       currentScrollEvents.stop,
-      clearScrollInterval
+      clearScrollInterval,
+      eventOptions
     );
 
     currentScrollLeftRef!.addEventListener(
       currentScrollEvents.start,
-      setScrollLeftInterval
+      setScrollLeftInterval,
+      eventOptions
     );
     currentScrollLeftRef!.addEventListener(
       currentScrollEvents.stop,
-      clearScrollInterval
+      clearScrollInterval,
+      eventOptions
     );
 
     return () => {
       clearScrollInterval();
 
+      // Use same eventOptions for removeEventListener to properly detach listeners
+      // Must match the options used in addEventListener
       currentScrollRightRef!.removeEventListener(
         currentScrollEvents.start,
-        setScrollRightInterval
+        setScrollRightInterval,
+        eventOptions
       );
       currentScrollRightRef!.removeEventListener(
         currentScrollEvents.stop,
-        clearScrollInterval
+        clearScrollInterval,
+        eventOptions
       );
 
       currentScrollLeftRef!.removeEventListener(
         currentScrollEvents.start,
-        setScrollLeftInterval
+        setScrollLeftInterval,
+        eventOptions
       );
       currentScrollLeftRef!.removeEventListener(
         currentScrollEvents.stop,
-        clearScrollInterval
+        clearScrollInterval,
+        eventOptions
       );
     };
-  }, [boundedRelativeScroll]);
+  }, [boundedRelativeScroll, scrollEvents]);
 
   return (
     <>
@@ -346,6 +362,12 @@ export function Bookshelf({ books }: BookshelfProps) {
                       transition: "all 500ms ease",
                       willChange: "auto",
                     }}
+                    onError={(e) => {
+                      // Fallback to a placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/books/null.jpg';
+                    }}
+                    crossOrigin="anonymous"
                   />
                 </Box>
               </button>

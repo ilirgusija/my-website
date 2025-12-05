@@ -194,6 +194,16 @@ export async function books() {
 }
 
 async function main() {
+    // Check if we have the required environment variables
+    const requiredEnvVars = ['BLOB_READ_WRITE_TOKEN', 'BLOB_URL', 'GOOGLE_BOOKS_API_KEY'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+        console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
+        console.warn("Skipping data generation - books data will not be available");
+        return;
+    }
+
     try {
         // Check if versioned data exists
         const existingData = await fetchVersionedData<ProcessedBook[]>("json_data/index.json");
@@ -203,11 +213,27 @@ async function main() {
             return;
         }
     } catch(error) {
-        console.log("No existing versioned data found, generating fresh data...");
+        console.log("No existing versioned data found, checking for legacy data...");
+        
+        // Check for legacy non-versioned data
+        try {
+            const { head } = await import('@vercel/blob');
+            await head(path.join("json_data", "index.json"));
+            console.log("Found legacy data, but no versioned data. Generating fresh versioned data...");
+        } catch(legacyError) {
+            console.log("No existing data found at all, generating fresh data...");
+        }
     }
     
     console.log("Generating fresh books data...");
-    await books();
+    
+    try {
+        await books();
+    } catch (error: any) {
+        // Don't fail the build if data generation fails
+        console.error("Failed to generate books data:", error.message);
+        console.warn("Build will continue without books data");
+    }
 }
 
 main();
