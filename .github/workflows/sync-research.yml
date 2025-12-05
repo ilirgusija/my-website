@@ -41,34 +41,65 @@ jobs:
         run: |
           npm run extract-metadata research-repo || echo "Metadata extraction failed, continuing..."
 
-      - name: Commit generated metadata files
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add content/research/*.md || echo "No markdown files to add"
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto-update research metadata from LaTeX files" && git push || echo "Failed to commit/push changes"
-          fi
-
-      - name: Sync Research PDFs to Vercel Blob
+      - name: Upload metadata and PDFs to Vercel Blob
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           PAPERS_REPO: ${{ secrets.PAPERS_REPO }}
         run: |
           # Create sync script
           cat > sync-research.js << 'EOF'
-          const { put } = require('@vercel/blob');
-          const fs = require('fs');
-          const path = require('path');
+          import { put } from '@vercel/blob';
+          import fs from 'fs';
+          import path from 'path';
+          import { fileURLToPath } from 'url';
+          
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = path.dirname(__filename);
           
           const researchDir = path.join(process.cwd(), 'research-repo');
+          const metadataDir = path.join(process.cwd(), 'content', 'research');
           const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
           
           if (!blobToken) {
             console.error('BLOB_READ_WRITE_TOKEN is not set');
             process.exit(1);
+          }
+          
+          async function uploadMetadata() {
+            try {
+              if (!fs.existsSync(metadataDir)) {
+                console.log('No metadata directory found, skipping metadata upload');
+                return;
+              }
+              
+              const metadataFiles = fs.readdirSync(metadataDir).filter(f => f.endsWith('.md'));
+              console.log(`Found ${metadataFiles.length} metadata files`);
+              
+              for (const file of metadataFiles) {
+                const filePath = path.join(metadataDir, file);
+                const content = fs.readFileSync(filePath, 'utf8');
+                const blobPath = `research/metadata/${file}`;
+                
+                console.log(`Uploading metadata ${file} to ${blobPath}...`);
+                
+                try {
+                  await put(blobPath, content, {
+                    access: 'public',
+                    contentType: 'text/markdown',
+                    addRandomSuffix: false,
+                    token: blobToken,
+                  });
+                  console.log(`✓ Successfully uploaded metadata ${file}`);
+                } catch (error) {
+                  console.error(`✗ Failed to upload metadata ${file}:`, error.message);
+                }
+              }
+              
+              console.log('Metadata upload completed');
+            } catch (error) {
+              console.error('Error uploading metadata:', error);
+              // Don't exit - continue with PDF sync
+            }
           }
           
           async function syncPDFs() {
@@ -118,12 +149,13 @@ jobs:
             }
           }
           
-          // Await the async function to ensure PDFs are synced before script exits
+          // Await the async functions to ensure everything is synced before script exits
           (async () => {
             try {
+              await uploadMetadata();
               await syncPDFs();
             } catch (error) {
-              console.error('Failed to sync PDFs:', error);
+              console.error('Failed to sync:', error);
               process.exit(1);
             }
           })();
