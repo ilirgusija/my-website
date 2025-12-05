@@ -72,7 +72,7 @@ export function Bookshelf({ books }: BookshelfProps) {
       const idx = books.findIndex((b) => b.slug === fullSlug);
       setBookIndex(idx);
     }
-  }, []);
+  }, [router.query.slug, bookIndex, books]);
 
   React.useEffect(() => {
     if (bookIndex === -1) {
@@ -127,9 +127,10 @@ export function Bookshelf({ books }: BookshelfProps) {
     };
 
     // Use passive option for touch events to improve scroll performance
-    const eventOptions = currentScrollEvents.start === "touchstart"
-      ? { passive: true }
-      : false;
+    const eventOptions: boolean | AddEventListenerOptions | undefined =
+      currentScrollEvents.start === "touchstart"
+        ? { passive: true }
+        : false;
 
     currentScrollRightRef!.addEventListener(
       currentScrollEvents.start,
@@ -156,25 +157,31 @@ export function Bookshelf({ books }: BookshelfProps) {
     return () => {
       clearScrollInterval();
 
+      // Use same eventOptions for removeEventListener to properly detach listeners
+      // Must match the options used in addEventListener
       currentScrollRightRef!.removeEventListener(
         currentScrollEvents.start,
-        setScrollRightInterval
+        setScrollRightInterval,
+        eventOptions
       );
       currentScrollRightRef!.removeEventListener(
         currentScrollEvents.stop,
-        clearScrollInterval
+        clearScrollInterval,
+        eventOptions
       );
 
       currentScrollLeftRef!.removeEventListener(
         currentScrollEvents.start,
-        setScrollLeftInterval
+        setScrollLeftInterval,
+        eventOptions
       );
       currentScrollLeftRef!.removeEventListener(
         currentScrollEvents.stop,
-        clearScrollInterval
+        clearScrollInterval,
+        eventOptions
       );
     };
-  }, [boundedRelativeScroll]);
+  }, [boundedRelativeScroll, scrollEvents]);
 
   return (
     <>

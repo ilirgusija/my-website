@@ -80,7 +80,9 @@ export async function getAllResearch(): Promise<Research[]> {
         if (!item.pdfUrl && process.env.BLOB_READ_WRITE_TOKEN) {
           try {
             const blobPath = `research/${item.pdfPath}`;
-            const metadata = await head(blobPath);
+            const metadata = await head(blobPath, {
+              token: process.env.BLOB_READ_WRITE_TOKEN,
+            });
             item.pdfUrl = metadata.downloadUrl;
           } catch (error: any) {
             // Silently handle missing PDFs - they might not be uploaded yet
@@ -131,7 +133,9 @@ export async function getResearch(slug: string): Promise<Research | null> {
     if (!item.pdfUrl && process.env.BLOB_READ_WRITE_TOKEN) {
       try {
         const blobPath = `research/${item.pdfPath}`;
-        const metadata = await head(blobPath);
+        const metadata = await head(blobPath, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
         item.pdfUrl = metadata.downloadUrl;
       } catch (error: any) {
         // Silently handle missing PDFs

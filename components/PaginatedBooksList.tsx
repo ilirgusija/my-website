@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Flex,
     Heading,
@@ -39,23 +39,36 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
     const buttonSize = useBreakpointValue({ base: "sm", md: "md" });
     const isMobile = useBreakpointValue({ base: true, md: false });
 
-    const goToPage = (page: number) => {
-        const newPage = Math.max(1, Math.min(page, totalPages));
-        setCurrentPage(newPage);
+    const goToPage = useCallback((page: number) => {
+        setCurrentPage((prevPage) => {
+            const newPage = Math.max(1, Math.min(page, totalPages));
+            // Scroll to top when changing pages
+            if (newPage !== prevPage) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return newPage;
+        });
+    }, [totalPages]);
 
-        // Scroll to top when changing pages
-        if (newPage !== currentPage) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    };
+    const goToPreviousPage = useCallback(() => {
+        setCurrentPage((prev) => {
+            const newPage = Math.max(1, Math.min(prev - 1, totalPages));
+            if (newPage !== prev) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return newPage;
+        });
+    }, [totalPages]);
 
-    const goToPreviousPage = () => {
-        goToPage(currentPage - 1);
-    };
-
-    const goToNextPage = () => {
-        goToPage(currentPage + 1);
-    };
+    const goToNextPage = useCallback(() => {
+        setCurrentPage((prev) => {
+            const newPage = Math.max(1, Math.min(prev + 1, totalPages));
+            if (newPage !== prev) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            return newPage;
+        });
+    }, [totalPages]);
 
     const handleJumpToPage = (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,7 +93,7 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentPage, totalPages]);
+    }, [goToPreviousPage, goToNextPage]);
 
     // Generate page numbers to show
     const getPageNumbers = () => {
@@ -130,9 +143,9 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                                     mb={{ base: 4, md: 4 }}
                                     display={{ base: "block", md: "inline" }}
                                     onError={(e) => {
-                                      // Fallback to a placeholder if image fails to load
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = '/books/null.jpg';
+                                        // Fallback to a placeholder if image fails to load
+                                        const target = e.target as HTMLImageElement;
+                                        target.src = '/books/null.jpg';
                                     }}
                                     crossOrigin="anonymous"
                                 />
