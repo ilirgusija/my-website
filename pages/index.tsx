@@ -38,9 +38,8 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
     title: "Mathematics & Engineering Student",
     affiliation: "Queen's University",
     bio: [
-      "I'm a 4th-year student at Queen's University, currently interning at Huawei Technologies. I'm passionate about Applied Mathematics and Computer Engineering, with a focus on topics like Control Theory, Distribution Theory, Probability, and Complex Analysis.",
-      "My professional journey began at Citi as a Full Stack Developer, where I honed my skills in Angular, Java Springboot, and MongoDB. Now, I work in a research-driven environment at Huawei, where I've developed expertise in CI/CD technologies, LLVM, Clang, and AST analysis.",
-      "I'm a lifelong learner, always eager to expand my knowledge in computing and beyond. I've created this website to showcase my work and serve as a platform for my research and projects.",
+      "I'm a 2nd-year master's student at Queen's University, pursuing a Master of Applied Science in Mathematics & Engineering.",
+      
     ],
     email: "ilir.gusija@queensu.ca",
     github: "ilirgusija",
