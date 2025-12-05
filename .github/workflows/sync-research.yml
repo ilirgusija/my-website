@@ -114,7 +114,15 @@ jobs:
             }
           }
           
-          syncPDFs();
+          // Await the async function to ensure PDFs are synced before script exits
+          (async () => {
+            try {
+              await syncPDFs();
+            } catch (error) {
+              console.error('Failed to sync PDFs:', error);
+              process.exit(1);
+            }
+          })();
           EOF
           
           node sync-research.js

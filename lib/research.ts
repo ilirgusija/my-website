@@ -26,7 +26,7 @@ export const devResearch: Research[] = [
     authors: ["Your Name"],
     abstract: "This is an example research project that demonstrates the research preview component.",
     status: "in-progress",
-    pdfPath: "research/example-paper.pdf",
+    pdfPath: "example-paper.pdf",
     lastUpdated: "2024-01-15",
     slug: "example-paper",
   },

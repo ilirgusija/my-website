@@ -110,18 +110,18 @@ export async function fetchVersionedData<T>(path: string): Promise<VersionedData
 
     const versionedData: VersionedData<T> = await response.json();
     
-    // Cache the result
+    // Validate checksum BEFORE caching to prevent corrupted data from being cached
+    const expectedChecksum = generateChecksum(versionedData.data);
+    if (expectedChecksum !== versionedData.version.checksum) {
+      throw new Error('Data integrity check failed: checksum mismatch');
+    }
+    
+    // Cache the result only after validation passes
     dataCache.set(path, {
       data: versionedData,
       timestamp: Date.now(),
       ttl: CACHE_TTL,
     });
-    
-    // Validate checksum
-    const expectedChecksum = generateChecksum(versionedData.data);
-    if (expectedChecksum !== versionedData.version.checksum) {
-      throw new Error('Data integrity check failed: checksum mismatch');
-    }
 
     return versionedData;
   } catch (error) {
