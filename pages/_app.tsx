@@ -9,6 +9,7 @@ import React from "react";
 import { useRouter } from "next/router";
 import { Lora } from "next/font/google";
 import { NextPage } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // define a custom layout type
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
@@ -102,6 +103,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
         }}
       />
       {getLayout(<Component {...pageProps} />)}
+      <SpeedInsights />
     </ChakraProvider>
   );
 }
