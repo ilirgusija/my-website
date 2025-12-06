@@ -66,13 +66,20 @@ export function Bookshelf({ books }: BookshelfProps) {
   );
 
   React.useEffect(() => {
-    if (router.query.slug && router.query.slug.length > 0 && bookIndex === -1) {
+    if (router.query.slug && router.query.slug.length > 0) {
       const currentSlug = (router.query.slug as string[])[0];
       const fullSlug = currentSlug.startsWith('/books/') ? currentSlug : `/books/${currentSlug}`;
       const idx = books.findIndex((b) => b.slug === fullSlug);
-      setBookIndex(idx);
+      if (idx !== -1 && idx !== bookIndex) {
+        setBookIndex(idx);
+      }
+    } else {
+      // If there's no slug in the URL, ensure bookIndex is -1
+      if (bookIndex !== -1) {
+        setBookIndex(-1);
+      }
     }
-  }, [router.query.slug, bookIndex, books]);
+  }, [router.query.slug, books]);
 
   React.useEffect(() => {
     if (bookIndex === -1) {
@@ -243,8 +250,9 @@ export function Bookshelf({ books }: BookshelfProps) {
                 key={book.title}
                 onClick={() => {
                   if (index === bookIndex) {
-                    setBookIndex(-1);
-                    router.push(`/books`);
+                    // Close the book - update router to clear the slug
+                    // The useEffect will handle updating bookIndex to -1
+                    router.replace('/books');
                   } else {
                     setBookIndex(index);
                     router.push(book.slug);

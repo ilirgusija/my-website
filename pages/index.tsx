@@ -28,18 +28,21 @@ interface HomePageProps {
 const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
   // Research interests - can be moved to a config file later
   const researchInterests = [
-    "Control Theory",
-    "Applied Mathematics",
+    "Stochastic Control",
+    "SLAM and State Estimation",
+    "Belief Space Planning",
+    "Safe Learning and Controls",
   ];
 
   // About me content - can be moved to a config file or CMS later
   const aboutMe = {
     name: "Ilir Gusija",
-    title: "Mathematics & Engineering Student",
+    title: "Applied Mathematics · Control · Robotics",
     affiliation: "Queen's University",
     bio: [
-      "I'm a 2nd-year master's student at Queen's University, pursuing a Master of Applied Science in Mathematics & Engineering.",
-
+      "I'm a master's student in applied mathematics at Queen's University working with Prof. Serdar Yüksel and Prof. Fady Alajaji on problems at the intersection of stochastic control theory and mobile robotics.",
+      "My current research focuses on active SLAM where I formulate simultaneous localization and mapping as a stochastic optimal control problem with rigorous convergence guarantees for finite approximation schemes. More broadly, I'm interested in learning, control, and planning under uncertainty, where measure-theoretic and information-theoretic tools provide tractable approaches to decision-making in complex state spaces.",
+      "Prior to grad school I worked in software development and completed undergraduate degrees in mathematics and computer engineering. Currently applying to PhD programs in robotics and related fields, looking to continue work with applications to autonomous systems.",
     ],
     email: "ilir.gusija@queensu.ca",
     github: "ilirgusija",
@@ -50,7 +53,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
     <>
       <NextSeo
         title="Ilir Gusija"
-        description="Mathematics & Engineering Student | Research Portfolio"
+        description="Applied Mathematics · Control · Robotics | Master's Student at Queen's University"
       />
       <Container maxW="1000px" px={{ base: 4, md: 6 }}>
         {/* Hero Section */}
