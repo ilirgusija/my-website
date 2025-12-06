@@ -41,11 +41,11 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
 
     const goToPage = useCallback((page: number) => {
         setCurrentPage((prevPage) => {
-            const newPage = Math.max(1, Math.min(page, totalPages));
-            // Scroll to top when changing pages
+        const newPage = Math.max(1, Math.min(page, totalPages));
+        // Scroll to top when changing pages
             if (newPage !== prevPage) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
             return newPage;
         });
     }, [totalPages]);

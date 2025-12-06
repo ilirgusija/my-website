@@ -131,13 +131,31 @@ export async function extractAndGenerateMetadata(
       }
 
       // Merge LaTeX metadata with existing metadata (existing takes precedence)
+      // Use LaTeX date for lastUpdated if available, otherwise use existing or current date
+      let lastUpdated = existingMetadata?.lastUpdated;
+      if (!lastUpdated && latexMetadata.date) {
+        // Try to parse LaTeX date format (could be various formats)
+        try {
+          const parsedDate = new Date(latexMetadata.date);
+          if (!isNaN(parsedDate.getTime())) {
+            lastUpdated = parsedDate.toISOString().split("T")[0];
+          }
+        } catch (e) {
+          // If date parsing fails, use current date
+          lastUpdated = new Date().toISOString().split("T")[0];
+        }
+      }
+      if (!lastUpdated) {
+        lastUpdated = new Date().toISOString().split("T")[0];
+      }
+
       const mergedMetadata: ResearchMetadata = {
         title: existingMetadata?.title || latexMetadata.title || finalSlug,
         authors: existingMetadata?.authors || latexMetadata.authors || ["Unknown"],
         abstract: existingMetadata?.abstract || latexMetadata.abstract || "",
         status: existingMetadata?.status || latexMetadata.status || "in-progress",
         pdfPath: pdfPath,
-        lastUpdated: existingMetadata?.lastUpdated || new Date().toISOString().split("T")[0],
+        lastUpdated: lastUpdated,
         arxivId: existingMetadata?.arxivId,
       };
 

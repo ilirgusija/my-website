@@ -62,7 +62,7 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
     <Box
       borderWidth="1px"
       borderRadius="lg"
-      p={6}
+      p={{ base: 4, md: 6 }}
       _hover={{ shadow: "md", borderColor: "blue.300" }}
       transition="all 0.2s"
       bg="white"
@@ -78,7 +78,23 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
       <VStack align="stretch" spacing={4}>
         {/* Header */}
         <VStack align="stretch" spacing={2}>
-          <HStack justify="space-between" align="flex-start">
+          <VStack align="stretch" spacing={2} display={{ base: "flex", md: "none" }}>
+            {/* Mobile: Stack title and badge vertically */}
+            <Heading size="md">
+              {research.title}
+            </Heading>
+            <Badge 
+              colorScheme={getStatusColor(research.status)} 
+              fontSize="sm" 
+              px={2} 
+              py={1}
+              alignSelf="flex-start"
+            >
+              {getStatusLabel(research.status)}
+            </Badge>
+          </VStack>
+          <HStack justify="space-between" align="flex-start" display={{ base: "none", md: "flex" }}>
+            {/* Desktop: Show title and badge side by side */}
             <Heading size="md" flex={1}>
               {research.title}
             </Heading>
@@ -112,46 +128,50 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
         )}
 
         {/* Footer */}
-        <HStack justify="space-between" pt={2} borderTopWidth="1px" borderColor="gray.100">
-          <HStack spacing={4} fontSize="xs" color="gray.500">
-            {research.lastUpdated && (
-              <HStack spacing={1}>
-                <Icon as={FiClock} boxSize={3} />
-                <Text>Updated {formatDate(research.lastUpdated)}</Text>
-              </HStack>
-            )}
-            {research.arxivId && (
-              <Link
-                href={`https://arxiv.org/abs/${research.arxivId}`}
-                isExternal
-                _hover={{ color: "blue.600" }}
-              >
+        <VStack align="stretch" spacing={3} pt={2} borderTopWidth="1px" borderColor="gray.100">
+          <HStack justify="space-between" flexWrap="wrap" spacing={4}>
+            <HStack spacing={4} fontSize="xs" color="gray.500" flexWrap="wrap">
+              {research.lastUpdated && (
                 <HStack spacing={1}>
-                  <Icon as={FiInfo} boxSize={3} />
-                  <Text>arXiv</Text>
+                  <Icon as={FiClock} boxSize={3} />
+                  <Text>Updated {formatDate(research.lastUpdated)}</Text>
                 </HStack>
-              </Link>
-            )}
-          </HStack>
+              )}
+              {research.arxivId && (
+                <Link
+                  href={`https://arxiv.org/abs/${research.arxivId}`}
+                  isExternal
+                  _hover={{ color: "blue.600" }}
+                >
+                  <HStack spacing={1}>
+                    <Icon as={FiInfo} boxSize={3} />
+                    <Text>arXiv</Text>
+                  </HStack>
+                </Link>
+              )}
+            </HStack>
 
-          {research.pdfUrl ? (
-            <Button
-              as={Link}
-              href={research.pdfUrl}
-              isExternal
-              size="sm"
-              colorScheme="blue"
-              variant="outline"
-              leftIcon={<Icon as={FiFileText} />}
-            >
-              View PDF
-            </Button>
-          ) : isInProgress ? (
-            <Text fontSize="xs" color="gray.500" fontStyle="italic">
-              PDF coming soon
-            </Text>
-          ) : null}
-        </HStack>
+            {research.pdfUrl ? (
+              <Button
+                as={Link}
+                href={research.pdfUrl.startsWith("/") 
+                  ? `/api/research/pdf-proxy?url=${encodeURIComponent(research.pdfUrl)}`
+                  : `/api/research/pdf-proxy?url=${encodeURIComponent(research.pdfUrl)}`}
+                isExternal
+                size="sm"
+                colorScheme="blue"
+                variant="outline"
+                leftIcon={<Icon as={FiFileText} />}
+              >
+                View PDF
+              </Button>
+            ) : isInProgress ? (
+              <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                PDF coming soon
+              </Text>
+            ) : null}
+          </HStack>
+        </VStack>
       </VStack>
     </Box>
   );

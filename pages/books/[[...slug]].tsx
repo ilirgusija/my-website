@@ -54,7 +54,7 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }: BooksProps) => {
     }
     return (
         <>
-            <NextSeo title="Books" />
+            <NextSeo title="Bookshelf" />
             <PaginatedBooksList
                 books={books.slice().sort((a, b) => b.rating - a.rating)}
                 booksPerPage={5}

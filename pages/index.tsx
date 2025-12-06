@@ -3,7 +3,6 @@ import {
   Flex,
   Heading,
   Text,
-  Image,
   VStack,
   HStack,
   Container,
@@ -12,6 +11,7 @@ import {
   Button,
   Icon,
 } from "@chakra-ui/react";
+import Image from "next/image";
 import { GetStaticProps } from "next";
 import { getAllNewsItems, NewsItem } from "../lib/news";
 import { NewsTimeline } from "../components/NewsTimeline";
@@ -63,16 +63,27 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
           gap={8}
           py={12}
         >
-          <Box flexShrink={0}>
-            <Image
-              src="/ilir.jpg"
-              alt="Ilir Gusija"
-              boxSize={{ base: "150px", md: "200px" }}
-              objectFit="cover"
+          <Box flexShrink={0} position="relative">
+            <Box
               borderRadius="full"
               borderWidth="3px"
               borderColor="blue.200"
-            />
+              overflow="hidden"
+              width={{ base: "150px", md: "200px" }}
+              height={{ base: "150px", md: "200px" }}
+              position="relative"
+            >
+              <Image
+                src="/ilir3.jpg"
+                alt="Ilir Gusija"
+                fill
+                priority
+                sizes="(max-width: 768px) 150px, 200px"
+                style={{
+                  objectFit: "cover",
+                }}
+              />
+            </Box>
           </Box>
           <VStack align={{ base: "center", md: "flex-start" }} spacing={4} flex={1}>
             <VStack align={{ base: "center", md: "flex-start" }} spacing={2}>
@@ -175,11 +186,11 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
               Research
             </Button>
             <Button as={Link} href="/books" colorScheme="blue" variant="outline">
-              Books
+              Bookshelf
             </Button>
-            <Button as={Link} href="/writing" colorScheme="blue" variant="outline">
+            {/* <Button as={Link} href="/writing" colorScheme="blue" variant="outline">
               Writing
-            </Button>
+            </Button> */}
           </HStack>
         </Box>
       </Container>
