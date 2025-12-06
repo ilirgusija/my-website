@@ -99,7 +99,7 @@ const ResearchPage: NextPageWithLayout<ResearchPageProps> = ({ research }) => {
             {research.pdfUrl && (
               <Button
                 as={Link}
-                href={research.pdfUrl}
+                href={`/api/research/pdf-proxy?url=${encodeURIComponent(research.pdfUrl)}`}
                 isExternal
                 colorScheme="blue"
                 leftIcon={<Icon as={FiFileText} />}

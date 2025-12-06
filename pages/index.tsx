@@ -3,7 +3,6 @@ import {
   Flex,
   Heading,
   Text,
-  Image,
   VStack,
   HStack,
   Container,
@@ -12,6 +11,7 @@ import {
   Button,
   Icon,
 } from "@chakra-ui/react";
+import Image from "next/image";
 import { GetStaticProps } from "next";
 import { getAllNewsItems, NewsItem } from "../lib/news";
 import { NewsTimeline } from "../components/NewsTimeline";
@@ -28,29 +28,32 @@ interface HomePageProps {
 const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
   // Research interests - can be moved to a config file later
   const researchInterests = [
-    "Control Theory",
-    "Applied Mathematics",
+    "Stochastic Control",
+    "SLAM and State Estimation",
+    "Belief Space Planning",
+    "Safe Learning and Controls",
   ];
 
   // About me content - can be moved to a config file or CMS later
   const aboutMe = {
     name: "Ilir Gusija",
-    title: "Mathematics & Engineering Student",
+    title: "Applied Mathematics · Control · Robotics",
     affiliation: "Queen's University",
     bio: [
-      "I'm a 2nd-year master's student at Queen's University, pursuing a Master of Applied Science in Mathematics & Engineering.",
-      
+      "I'm a master's student in applied mathematics at Queen's University working with Prof. Serdar Yüksel and Prof. Fady Alajaji on problems at the intersection of stochastic control theory and mobile robotics.",
+      "My current research focuses on active SLAM where I formulate simultaneous localization and mapping as a stochastic optimal control problem with rigorous convergence guarantees for finite approximation schemes. More broadly, I'm interested in learning, control, and planning under uncertainty, where measure-theoretic and information-theoretic tools provide tractable approaches to decision-making in complex state spaces.",
+      "Prior to grad school I worked in software development and completed undergraduate degrees in mathematics and computer engineering. Currently applying to PhD programs in robotics and related fields, looking to continue work with applications to autonomous systems.",
     ],
     email: "ilir.gusija@queensu.ca",
     github: "ilirgusija",
     linkedin: "ilir-gusija",
   };
 
-    return (
+  return (
     <>
       <NextSeo
         title="Ilir Gusija"
-        description="Mathematics & Engineering Student | Research Portfolio"
+        description="Applied Mathematics · Control · Robotics | Master's Student at Queen's University"
       />
       <Container maxW="1000px" px={{ base: 4, md: 6 }}>
         {/* Hero Section */}
@@ -60,28 +63,39 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
           gap={8}
           py={12}
         >
-          <Box flexShrink={0}>
-            <Image
-              src="/ilir.jpg"
-              alt="Ilir Gusija"
-              boxSize={{ base: "150px", md: "200px" }}
-              objectFit="cover"
+          <Box flexShrink={0} position="relative">
+            <Box
               borderRadius="full"
               borderWidth="3px"
               borderColor="blue.200"
-            />
+              overflow="hidden"
+              width={{ base: "150px", md: "200px" }}
+              height={{ base: "150px", md: "200px" }}
+              position="relative"
+            >
+              <Image
+                src="/ilir3.jpg"
+                alt="Ilir Gusija"
+                fill
+                priority
+                sizes="(max-width: 768px) 150px, 200px"
+                style={{
+                  objectFit: "cover",
+                }}
+              />
+            </Box>
           </Box>
           <VStack align={{ base: "center", md: "flex-start" }} spacing={4} flex={1}>
             <VStack align={{ base: "center", md: "flex-start" }} spacing={2}>
               <Heading size="2xl" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.name}
-                </Heading>
+              </Heading>
               <Text fontSize="xl" color="gray.600" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.title}
               </Text>
               <Text fontSize="md" color="gray.500" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.affiliation}
-            </Text>
+              </Text>
             </VStack>
 
             <HStack spacing={4} flexWrap="wrap" justify={{ base: "center", md: "flex-start" }}>
@@ -116,7 +130,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
               </Button>
               <Button
                 as={Link}
-                href="/cv.pdf"
+                href="/cv"
                 leftIcon={<Icon as={FiFileText} />}
                 size="sm"
                 variant="outline"
@@ -172,16 +186,16 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
               Research
             </Button>
             <Button as={Link} href="/books" colorScheme="blue" variant="outline">
-              Books
+              Bookshelf
             </Button>
-            <Button as={Link} href="/writing" colorScheme="blue" variant="outline">
+            {/* <Button as={Link} href="/writing" colorScheme="blue" variant="outline">
               Writing
-            </Button>
+            </Button> */}
           </HStack>
         </Box>
       </Container>
     </>
-    );
+  );
 };
 
 HomePage.getLayout = (page) => (
@@ -193,7 +207,7 @@ HomePage.getLayout = (page) => (
 export default HomePage;
 
 export const getStaticProps: GetStaticProps = async () => {
-  const newsItems = getAllNewsItems();
+  const newsItems = await getAllNewsItems();
 
   return {
     props: {

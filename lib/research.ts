@@ -20,17 +20,7 @@ export interface Research {
 }
 
 // Dev fallback data for local development
-export const devResearch: Research[] = [
-  {
-    title: "Example Research in Progress",
-    authors: ["Your Name"],
-    abstract: "This is an example research project that demonstrates the research preview component.",
-    status: "in-progress",
-    pdfPath: "example-paper.pdf",
-    lastUpdated: "2024-01-15",
-    slug: "example-paper",
-  },
-];
+export const devResearch: Research[] = [];
 
 export function getResearchSlugs(): string[] {
   if (!fs.existsSync(researchDirectory)) {
@@ -55,6 +45,13 @@ export async function getAllResearch(): Promise<Research[]> {
         const research = await Promise.all(
           blobs
             .filter((blob) => blob.pathname.endsWith(".md"))
+            .filter((blob) => {
+              // Filter out example research items
+              const slug = blob.pathname
+                .replace("research/metadata/", "")
+                .replace(/\.md$/, "");
+              return !slug.toLowerCase().includes("example");
+            })
             .map(async (blob) => {
               const response = await fetch(blob.downloadUrl);
               const fileContents = await response.text();
@@ -62,6 +59,12 @@ export async function getAllResearch(): Promise<Research[]> {
               const slug = blob.pathname
                 .replace("research/metadata/", "")
                 .replace(/\.md$/, "");
+
+              // Additional filter: exclude if title contains "example"
+              const title = (data as any).title || "";
+              if (title.toLowerCase().includes("example")) {
+                return null;
+              }
 
               const item: Research = {
                 ...(data as Omit<Research, "slug" | "pdfUrl">),
@@ -88,7 +91,8 @@ export async function getAllResearch(): Promise<Research[]> {
             })
         );
 
-        return research;
+        // Filter out null items (excluded examples)
+        return research.filter((item): item is Research => item !== null);
       }
     } catch (error: any) {
       console.warn("Failed to fetch research metadata from blob:", error.message);
@@ -105,12 +109,19 @@ export async function getAllResearch(): Promise<Research[]> {
     return [];
   }
 
-  const slugs = getResearchSlugs();
+  const slugs = getResearchSlugs()
+    .filter((slug) => !slug.toLowerCase().includes("example"));
   const research = await Promise.all(
     slugs.map(async (slug) => {
       const filePath = path.join(researchDirectory, `${slug}.md`);
       const fileContents = fs.readFileSync(filePath, "utf8");
       const { data } = matter(fileContents);
+
+      // Additional filter: exclude if title contains "example"
+      const title = (data as any).title || "";
+      if (title.toLowerCase().includes("example")) {
+        return null;
+      }
 
       const item: Research = {
         ...(data as Omit<Research, "slug" | "pdfUrl">),
@@ -147,10 +158,16 @@ export async function getAllResearch(): Promise<Research[]> {
     })
   );
 
-  return research;
+  // Filter out null items (excluded examples)
+  return research.filter((item): item is Research => item !== null);
 }
 
 export async function getResearch(slug: string): Promise<Research | null> {
+  // Filter out example research items
+  if (slug.toLowerCase().includes("example")) {
+    return null;
+  }
+
   // Try to fetch from Vercel Blob first (production)
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
@@ -162,6 +179,12 @@ export async function getResearch(slug: string): Promise<Research | null> {
       const response = await fetch(metadata.downloadUrl);
       const fileContents = await response.text();
       const { data } = matter(fileContents);
+
+      // Additional filter: exclude if title contains "example"
+      const title = (data as any).title || "";
+      if (title.toLowerCase().includes("example")) {
+        return null;
+      }
 
       const item: Research = {
         ...(data as Omit<Research, "slug" | "pdfUrl">),
@@ -200,6 +223,12 @@ export async function getResearch(slug: string): Promise<Research | null> {
 
   const fileContents = fs.readFileSync(filePath, "utf8");
   const { data } = matter(fileContents);
+
+  // Additional filter: exclude if title contains "example"
+  const title = (data as any).title || "";
+  if (title.toLowerCase().includes("example")) {
+    return null;
+  }
 
   const item: Research = {
     ...(data as Omit<Research, "slug" | "pdfUrl">),

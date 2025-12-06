@@ -65,7 +65,7 @@ function Layout({ children }: PropsWithChildren) {
             </Text>
             <Navigation link="/">Home</Navigation>
             <Navigation link="/research">Research</Navigation>
-            <Navigation link="/books">Books</Navigation>
+            <Navigation link="/books">Bookshelf</Navigation>
             {/* <Navigation link="/writing">Writing</Navigation> */}
           </VStack>
           <VStack align="flex-start">
@@ -95,7 +95,7 @@ function Layout({ children }: PropsWithChildren) {
           justify="space-between"
           position="fixed"
           top={0}
-          display={{ base: "flex", lg: "none" }}
+          display={{ base: "flex", md: "none" }}
           height={12}
           zIndex={50}
           left={0}
@@ -104,46 +104,59 @@ function Layout({ children }: PropsWithChildren) {
           borderBottom="1px solid"
           borderBottomColor="gray.200"
           bg="white"
+          px={4}
         >
-          <Container px={8}>
-            <Flex justify="space-between" width="100%">
-              <HStack spacing={8}>
-                <Navigation link="/">Home</Navigation>
-                <Navigation link="/research">Research</Navigation>
-                <Navigation link="/books">Books</Navigation>
-                <Navigation link="/writing">Writing</Navigation>
-              </HStack>
-              <Menu>
-                <MenuButton
-                  as={IconButton}
-                  aria-label="Options"
-                  icon={<Icon as={FiMenu} boxSize={4} />}
-                  variant="outline"
-                  size="sm"
-                />
-                <MenuList>
-                  <MenuGroup title="NAVIGATION">
-                    <VStack align="flex-start" px={4} spacing={3} mb={4}>
-                      <Navigation link="/">Home</Navigation>
-                      <Navigation link="/research">Research</Navigation>
-                      <Navigation link="/books">Books</Navigation>
-                      <Navigation link="/writing">Writing</Navigation>
-                    </VStack>
-                  </MenuGroup>
-                  <MenuGroup title="FIND ME ON">
-                    <VStack align="flex-start" px={4} spacing={3} mb={2}>
-                      <Navigation link="https://github.com/ilirgusija" isExternal>
-                        GitHub
-                      </Navigation>
-                      <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
-                        LinkedIn
-                      </Navigation>
-                    </VStack>
-                  </MenuGroup>
-                </MenuList>
-              </Menu>
-            </Flex>
-          </Container>
+          <Menu>
+            <MenuButton
+              as={IconButton}
+              aria-label="Options"
+              icon={<Icon as={FiMenu} boxSize={4} />}
+              variant="outline"
+              size="sm"
+            />
+            <MenuList>
+              <MenuGroup title="NAVIGATION">
+                <VStack align="flex-start" px={4} spacing={3} mb={4}>
+                  <Navigation link="/">Home</Navigation>
+                  <Navigation link="/research">Research</Navigation>
+                  <Navigation link="/books">Bookshelf</Navigation>
+                  {/* <Navigation link="/writing">Writing</Navigation> */}
+                </VStack>
+              </MenuGroup>
+              <MenuGroup title="FIND ME ON">
+                <VStack align="flex-start" px={4} spacing={3} mb={2}>
+                  <Navigation link="https://github.com/ilirgusija" isExternal>
+                    GitHub
+                  </Navigation>
+                  <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
+                    LinkedIn
+                  </Navigation>
+                </VStack>
+              </MenuGroup>
+            </MenuList>
+          </Menu>
+        </Flex>
+        <Flex
+          justify="center"
+          position="fixed"
+          top={0}
+          display={{ base: "none", md: "flex", lg: "none" }}
+          height={12}
+          zIndex={50}
+          left={0}
+          width="100%"
+          align="center"
+          borderBottom="1px solid"
+          borderBottomColor="gray.200"
+          bg="white"
+          px={4}
+        >
+          <HStack spacing={8}>
+            <Navigation link="/">Home</Navigation>
+            <Navigation link="/research">Research</Navigation>
+            <Navigation link="/books">Bookshelf</Navigation>
+            {/* <Navigation link="/writing">Writing</Navigation> */}
+          </HStack>
         </Flex>
         {children}
       </Container>

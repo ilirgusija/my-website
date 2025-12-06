@@ -44,6 +44,7 @@
         "nextjs": "^0.0.3",
         "node-fetch": "^3.3.2",
         "node-vibrant": "^3.1.6",
+        "pdfjs-dist": "^5.4.449",
         "react": "18.2.0",
         "react-dom": "18.2.0",
         "react-icons": "^4.7.1",
