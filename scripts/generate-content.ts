@@ -5,7 +5,11 @@ import tinycolor from "tinycolor2";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
 import { put, head } from '@vercel/blob';
-import Vibrant from 'node-vibrant'; // For dominant colors
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+// node-vibrant entrypoint for Node (CommonJS)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Vibrant = require("node-vibrant/node");
 import { uploadVersionedData, fetchVersionedData } from '../lib/data-versioning';
 
 
