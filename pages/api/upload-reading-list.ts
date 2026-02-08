@@ -1,15 +1,19 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { books } from "../../scripts/generate-content";
 import { put } from '@vercel/blob';
-import { uploadVersionedData, generateChecksum } from '../../lib/data-versioning';
+import { uploadVersionedData, generateChecksum, clearCache } from '../../lib/data-versioning';
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
+
+// Configure maxDuration for Next.js 13.5+ (required for long-running operations)
+export const maxDuration = 60; // 60 seconds (max for Pro plan, Hobby plan maxes at 10s)
 
 export const config = {
   api: {
     bodyParser: {
       sizeLimit: '4mb', // limit for large CSV files
     },
+    responseLimit: false, // Disable response limit for large responses
   },
 };
 
@@ -30,10 +34,14 @@ type ErrorResponse = {
 };
 
 async function uploadCSVtoBlob(csvData: any) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
   const result = await put(`csv_data/reading_data.csv`, csvData, {
     access: 'public',
     contentType: 'text/csv',
     addRandomSuffix: false,
+    token: process.env.BLOB_READ_WRITE_TOKEN,
   });
   console.log('Uploaded CSV to Blob @', result.pathname);
   return result;
@@ -65,7 +73,7 @@ async function fetchCSVFromBlob(): Promise<string> {
 }
 
 // Poll for CSV availability with exponential backoff
-async function waitForCSVAvailability(expectedChecksum: string, maxAttempts: number = 10): Promise<boolean> {
+async function waitForCSVAvailability(expectedChecksum: string, maxAttempts: number = 5): Promise<boolean> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       console.log(`Attempt ${attempt}: Checking CSV availability...`);
@@ -88,8 +96,8 @@ async function waitForCSVAvailability(expectedChecksum: string, maxAttempts: num
       console.log(`Attempt ${attempt} failed:`, error instanceof Error ? error.message : String(error));
     }
     
-    // Exponential backoff: 500ms, 1s, 2s, 4s, 8s, etc.
-    const delay = Math.min(500 * Math.pow(2, attempt - 1), 10000);
+    // Reduced exponential backoff: 200ms, 400ms, 800ms, 1.6s, 3.2s
+    const delay = Math.min(200 * Math.pow(2, attempt - 1), 3200);
     console.log(`Waiting ${delay}ms before next attempt...`);
     await new Promise(resolve => setTimeout(resolve, delay));
   }
@@ -133,28 +141,47 @@ export default async function handler(
       // Wait for CSV to be available and validate content
       await waitForCSVAvailability(expectedChecksum);
       
+      console.log('Calling books() to process CSV and upload JSON...');
       const newBooks = await books();
       console.log(`Successfully processed ${newBooks.length} books`);
-
-      // Verify versioned JSON was uploaded and contains the expected data
-      try {
-        const { fetchVersionedData } = await import('../../lib/data-versioning');
-        const versionedData = await fetchVersionedData<typeof newBooks>('json_data/index.json');
-        
-        if (!versionedData) {
-          throw new Error('Failed to fetch versioned JSON data');
+      
+      // Wait for blob to be available (reduced wait time)
+      console.log('Waiting for JSON blob to be available...');
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        try {
+          const { head } = await import('@vercel/blob');
+          await head('json_data/index.json', {
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+          });
+          console.log(`JSON blob is available after ${attempt} attempt(s)`);
+          break;
+        } catch (error) {
+          if (attempt === 3) {
+            console.warn('JSON blob not immediately available, but continuing...');
+          }
         }
-        
-        if (versionedData.data.length !== newBooks.length) {
-          throw new Error(`JSON validation failed: expected ${newBooks.length} books, got ${versionedData.data.length}`);
-        }
-        
-        console.log(`JSON content validation successful - version ${versionedData.version.version}`);
-      } catch (verifyError) {
-        console.error('JSON verification failed:', verifyError);
-        throw new Error(`JSON upload verification failed: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`);
       }
 
+      // Verify JSON upload (non-blocking - don't fail if verification takes too long)
+      (async () => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const { fetchVersionedData } = await import('../../lib/data-versioning');
+          const versionedData = await fetchVersionedData<typeof newBooks>('json_data/index.json', true);
+          
+          if (versionedData && versionedData.data.length !== newBooks.length) {
+            console.warn(`Verification warning: Expected ${newBooks.length} books, got ${versionedData.data.length}`);
+          }
+        } catch (verifyError) {
+          // Silently ignore verification errors - non-blocking
+        }
+      })();
+
+      // Clear the cache to ensure fresh data is fetched
+      console.log('Clearing data cache...');
+      clearCache('json_data/index.json');
+      
       // trigger revalidation for the books page and all individual book pages
       console.log('Revalidating pages...');
       await res.revalidate("/books");

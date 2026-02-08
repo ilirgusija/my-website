@@ -68,6 +68,7 @@ export default async function handler(
 
     const errors: string[] = [];
     let synced = 0;
+    const syncedSlugs: string[] = [];
 
     // Download and upload each PDF
     for (const file of pdfFiles) {
@@ -91,10 +92,35 @@ export default async function handler(
           addRandomSuffix: false,
         });
 
+        // Extract slug from file path (assuming format like "slug.pdf" or "subfolder/slug.pdf")
+        const slug = file.path.replace(/\.pdf$/, "").split("/").pop() || "";
+        if (slug) {
+          syncedSlugs.push(slug);
+        }
+
         synced++;
       } catch (error: any) {
         errors.push(`Failed to sync ${file.path}: ${error.message}`);
       }
+    }
+
+    // Revalidate research pages to ensure updated PDFs are reflected
+    console.log('Revalidating research pages...');
+    try {
+      // Revalidate the research index page
+      await res.revalidate("/research");
+      
+      // Revalidate individual research pages for synced PDFs
+      for (const slug of syncedSlugs) {
+        try {
+          await res.revalidate(`/research/${slug}`);
+        } catch (revalidateError) {
+          console.error(`Failed to revalidate /research/${slug}:`, revalidateError);
+        }
+      }
+    } catch (revalidateError) {
+      console.error('Failed to revalidate research pages:', revalidateError);
+      // Don't fail the request if revalidation fails
     }
 
     return res.status(200).json({
