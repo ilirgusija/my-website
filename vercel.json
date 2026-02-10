@@ -5,6 +5,10 @@
     "pages/api/**/*": {
       "memory": 1024,
       "maxDuration": 10
+    },
+    "pages/api/upload-reading-list.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   }
 } 

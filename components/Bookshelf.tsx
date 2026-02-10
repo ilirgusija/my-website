@@ -33,7 +33,7 @@ export function Bookshelf({ books }: BookshelfProps) {
   const scrollEvents = useBreakpointValue({
     base: { start: "touchstart", stop: "touchend" },
     sm: { start: "mouseenter", stop: "mouseleave" },
-  });
+  }) || { start: "mouseenter", stop: "mouseleave" }; // Fallback for desktop
 
   const width = 41.5;
   const height = 220;
@@ -98,97 +98,45 @@ export function Bookshelf({ books }: BookshelfProps) {
     }
   }, [viewportDimensions, boundedRelativeScroll]);
 
-  React.useEffect(() => {
-    if (!scrollEvents) {
-      return;
+  // Scroll interval ref to manage the scrolling animation
+  const scrollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const startScrollingRight = React.useCallback(() => {
+    setIsScrolling(true);
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
     }
+    scrollIntervalRef.current = setInterval(() => {
+      boundedRelativeScroll(3);
+    }, 10);
+  }, [boundedRelativeScroll]);
 
-    // Create a copy of the scroll events to save for clean-up
-    // So it doesn't switch underneath causing us to clean-up the wrong listeners
-    const currentScrollEvents = { ...scrollEvents };
+  const startScrollingLeft = React.useCallback(() => {
+    setIsScrolling(true);
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+    }
+    scrollIntervalRef.current = setInterval(() => {
+      boundedRelativeScroll(-3);
+    }, 10);
+  }, [boundedRelativeScroll]);
 
-    const currentScrollRightRef = scrollRightRef.current;
-    const currentScrollLeftRef = scrollLeftRef.current;
+  const stopScrolling = React.useCallback(() => {
+    setIsScrolling(false);
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
 
-    let scrollInterval: NodeJS.Timeout | null = null;
-
-    const setScrollRightInterval = () => {
-      setIsScrolling(true);
-      scrollInterval = setInterval(() => {
-        boundedRelativeScroll(3);
-      }, 10);
-    };
-
-    const setScrollLeftInterval = () => {
-      setIsScrolling(true);
-      scrollInterval = setInterval(() => {
-        boundedRelativeScroll(-3);
-      }, 10);
-    };
-
-    const clearScrollInterval = () => {
-      setIsScrolling(false);
-      if (scrollInterval) {
-        clearInterval(scrollInterval);
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
       }
     };
-
-    // Use passive option for touch events to improve scroll performance
-    const eventOptions: boolean | AddEventListenerOptions | undefined =
-      currentScrollEvents.start === "touchstart"
-        ? { passive: true }
-        : false;
-
-    currentScrollRightRef!.addEventListener(
-      currentScrollEvents.start,
-      setScrollRightInterval,
-      eventOptions
-    );
-    currentScrollRightRef!.addEventListener(
-      currentScrollEvents.stop,
-      clearScrollInterval,
-      eventOptions
-    );
-
-    currentScrollLeftRef!.addEventListener(
-      currentScrollEvents.start,
-      setScrollLeftInterval,
-      eventOptions
-    );
-    currentScrollLeftRef!.addEventListener(
-      currentScrollEvents.stop,
-      clearScrollInterval,
-      eventOptions
-    );
-
-    return () => {
-      clearScrollInterval();
-
-      // Use same eventOptions for removeEventListener to properly detach listeners
-      // Must match the options used in addEventListener
-      currentScrollRightRef!.removeEventListener(
-        currentScrollEvents.start,
-        setScrollRightInterval,
-        eventOptions
-      );
-      currentScrollRightRef!.removeEventListener(
-        currentScrollEvents.stop,
-        clearScrollInterval,
-        eventOptions
-      );
-
-      currentScrollLeftRef!.removeEventListener(
-        currentScrollEvents.start,
-        setScrollLeftInterval,
-        eventOptions
-      );
-      currentScrollLeftRef!.removeEventListener(
-        currentScrollEvents.stop,
-        clearScrollInterval,
-        eventOptions
-      );
-    };
-  }, [boundedRelativeScroll, scrollEvents]);
+  }, []);
 
   return (
     <>
@@ -233,6 +181,12 @@ export function Bookshelf({ books }: BookshelfProps) {
             width="28px"
             _hover={{ bg: "gray.100" }}
             borderRightRadius={{ base: 0, md: undefined }}
+            as="div"
+            cursor="pointer"
+            onMouseEnter={startScrollingLeft}
+            onMouseLeave={stopScrolling}
+            onTouchStart={startScrollingLeft}
+            onTouchEnd={stopScrolling}
           >
             <Icon as={FaChevronLeft} boxSize={3} />
           </Center>
@@ -397,6 +351,12 @@ export function Bookshelf({ books }: BookshelfProps) {
             borderRadius="md"
             width="28px"
             _hover={{ bg: "gray.100" }}
+            as="div"
+            cursor="pointer"
+            onMouseEnter={startScrollingRight}
+            onMouseLeave={stopScrolling}
+            onTouchStart={startScrollingRight}
+            onTouchEnd={stopScrolling}
           >
             <Icon as={FaChevronRight} boxSize={3} />
           </Center>

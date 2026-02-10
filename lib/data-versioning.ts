@@ -34,6 +34,10 @@ export async function uploadVersionedData<T>(
   path: string, 
   contentType: string = 'application/json'
 ): Promise<DataVersion> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set - cannot upload JSON');
+  }
+
   const version: DataVersion = {
     timestamp: Date.now(),
     checksum: generateChecksum(data),
@@ -46,29 +50,71 @@ export async function uploadVersionedData<T>(
     version
   };
 
-  await put(path, JSON.stringify(versionedData, null, 2), {
-    access: 'public',
-    contentType,
-    addRandomSuffix: false,
-  });
+  const jsonString = JSON.stringify(versionedData, null, 2);
+  console.log(`Uploading JSON to ${path} (${jsonString.length} bytes, ${version.recordCount} records)`);
 
-  // Also upload version metadata separately for quick access
-  await put(`${path}.version`, JSON.stringify(version, null, 2), {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false,
-  });
+  try {
+    const result = await put(path, jsonString, {
+      access: 'public',
+      contentType,
+      addRandomSuffix: false,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    console.log(`JSON uploaded successfully to ${result.pathname}`);
 
-  return version;
+    // Also upload version metadata separately for quick access
+    const versionString = JSON.stringify(version, null, 2);
+    await put(`${path}.version`, versionString, {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    console.log(`Version metadata uploaded successfully to ${path}.version`);
+
+    return version;
+  } catch (error) {
+    console.error(`Failed to upload JSON to ${path}:`, error);
+    throw new Error(`JSON upload failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // Fetch versioned data
-export async function fetchVersionedData<T>(path: string): Promise<VersionedData<T> | null> {
+export async function fetchVersionedData<T>(path: string, bypassCache: boolean = false): Promise<VersionedData<T> | null> {
   try {
-    // Check cache first
-    const cached = dataCache.get(path);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data as VersionedData<T>;
+    // Check cache first (unless bypassed)
+    if (!bypassCache) {
+      const cached = dataCache.get(path);
+      if (cached && Date.now() - cached.timestamp < cached.ttl) {
+        // Verify the cached version is still current by checking version file
+        try {
+          if (process.env.BLOB_READ_WRITE_TOKEN) {
+            const latestVersion = await getLatestVersion(path);
+            if (latestVersion && cached.data) {
+              const cachedVersion = (cached.data as VersionedData<T>).version.version;
+              // If versions match, cache is still valid
+              if (latestVersion.version === cachedVersion) {
+                return cached.data as VersionedData<T>;
+              } else {
+                // Version changed, clear cache and fetch fresh
+                dataCache.delete(path);
+              }
+            } else {
+              // Can't check version, use cached data
+              return cached.data as VersionedData<T>;
+            }
+          } else {
+            // No token, use cached data if available
+            return cached.data as VersionedData<T>;
+          }
+        } catch (versionError: any) {
+          // If we can't check version, use cached data if available
+          // This is a fallback for when version check fails
+          if (cached) {
+            return cached.data as VersionedData<T>;
+          }
+        }
+      }
     }
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -169,4 +215,13 @@ export async function needsUpdate(path: string, lastKnownVersion?: string): Prom
   }
 
   return latestVersion.version !== lastKnownVersion;
+}
+
+// Clear cache for a specific path or all paths
+export function clearCache(path?: string): void {
+  if (path) {
+    dataCache.delete(path);
+  } else {
+    dataCache.clear();
+  }
 }
