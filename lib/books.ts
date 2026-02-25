@@ -1,9 +1,8 @@
-import path from "path";
-import { head } from "@vercel/blob";
-import { fetchVersionedData } from "./data-versioning";
 import { devBooks } from "./dev-data";
 import dotenv from "dotenv";
+import { getSupabaseClient, hasSupabaseConfig } from "./supabase-garden";
 dotenv.config({ path: ".env.development.local" });
+dotenv.config({ path: ".env.local" });
 
 export interface Book {
     ISBN: string;
@@ -18,31 +17,59 @@ export interface Book {
     summary: string;
 }
 
-export async function getAllBooks(): Promise<Book[]> {
-    // In development, check for token first to avoid noisy errors
-    if (process.env.NODE_ENV === 'development' && !process.env.BLOB_READ_WRITE_TOKEN) {
-        console.log("Development mode: BLOB_READ_WRITE_TOKEN not set, using development books data");
-        return devBooks;
-    }
+interface LibraryBookRow {
+    isbn: string;
+    title: string;
+    author: string;
+    finished_date: string;
+    rating: number;
+    cover_image: string;
+    spine_color: string;
+    text_color: string;
+    slug: string;
+    summary: string;
+}
 
+function rowToBook(row: LibraryBookRow): Book {
+    const encodedIsbn = encodeURIComponent(row.isbn);
+    return {
+        ISBN: row.isbn,
+        title: row.title,
+        author: row.author,
+        date: row.finished_date,
+        rating: row.rating,
+        coverImage: `/api/books/cover/${encodedIsbn}`,
+        spineColor: row.spine_color,
+        textColor: row.text_color,
+        slug: row.slug,
+        summary: row.summary || "",
+    };
+}
+
+export async function getAllBooks(): Promise<Book[]> {
     try {
-        const versionedData = await fetchVersionedData<Book[]>("json_data/index.json");
-        
-        if (!versionedData) {
-            throw new Error("Failed to fetch versioned books data");
+        if (!hasSupabaseConfig()) {
+            if (process.env.NODE_ENV === "development") {
+                return devBooks;
+            }
+            return [];
         }
-        
-        console.log(`Fetched books data version ${versionedData.version.version} with ${versionedData.data.length} books`);
-        return versionedData.data;
+
+        const supabase = getSupabaseClient();
+        if (!supabase) return process.env.NODE_ENV === "development" ? devBooks : [];
+
+        const { data, error } = await supabase
+            .from("library_books")
+            .select("*");
+        if (error) throw new Error(error.message);
+
+        const books = ((data || []) as LibraryBookRow[]).map(rowToBook);
+        books.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return books;
     } catch(error) {
-        // Fallback for development
         if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: failed to fetch books, using development books data");
             return devBooks;
         }
-        
-        // In production/build, return empty array instead of throwing
-        // This allows the build to succeed even if books data isn't available
         console.warn("Books data not found - returning empty array. Build will continue without books.");
         return [];
     }
@@ -55,32 +82,28 @@ export async function getAllSlugs(): Promise<string[]> {
 
 // Optimized function to fetch only slugs (for getStaticPaths)
 export async function getBookSlugsOnly(): Promise<string[]> {
-    // In development, check for token first to avoid noisy errors
-    if (process.env.NODE_ENV === 'development' && !process.env.BLOB_READ_WRITE_TOKEN) {
-        console.log("Development mode: BLOB_READ_WRITE_TOKEN not set, using development book slugs");
-        return devBooks.map((book: Book) => book.slug);
-    }
-
     try {
-        const versionedData = await fetchVersionedData<Book[]>("json_data/index.json");
-        
-        if (!versionedData) {
-            throw new Error("Failed to fetch versioned books data");
+        if (!hasSupabaseConfig()) {
+            if (process.env.NODE_ENV === "development") {
+                return devBooks.map((book: Book) => book.slug);
+            }
+            return [];
         }
-        
-        // Only extract slugs, don't process full book data
-        const slugs = versionedData.data.map(book => book.slug);
-        console.log(`Fetched ${slugs.length} book slugs for static path generation`);
+
+        const supabase = getSupabaseClient();
+        if (!supabase) return process.env.NODE_ENV === "development" ? devBooks.map((book: Book) => book.slug) : [];
+
+        const { data, error } = await supabase
+            .from("library_books")
+            .select("slug");
+        if (error) throw new Error(error.message);
+
+        const slugs = (data || []).map((r: any) => r.slug).filter(Boolean);
         return slugs;
     } catch(error) {
-        // Fallback for development
         if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: failed to fetch book slugs, using development book slugs");
             return devBooks.map((book: Book) => book.slug);
         }
-        
-        // In production/build, return empty array instead of throwing
-        // This allows the build to succeed even if books data isn't available
         console.warn("Book slugs not found - returning empty array. Build will continue without books.");
         return [];
     }

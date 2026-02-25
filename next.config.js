@@ -3,6 +3,11 @@ import createMDX from '@next/mdx'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
+  eslint: {
+    // ESLint 9 + .eslintrc.json causes circular structure errors during build.
+    // Lint separately with `npm run lint` instead.
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {

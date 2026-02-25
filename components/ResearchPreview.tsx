@@ -104,13 +104,13 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
           </HStack>
 
           <Text fontSize="sm" color="gray.600" fontStyle="italic">
-            {research.authors.join(", ")}
+            {(research.authors ?? []).join(", ")}
           </Text>
         </VStack>
 
         {/* Abstract */}
         <Text fontSize="sm" color="gray.700" noOfLines={3} lineHeight="tall">
-          {research.abstract}
+          {research.abstract ?? ""}
         </Text>
 
         {/* PDF Preview */}

@@ -82,38 +82,14 @@ export async function uploadVersionedData<T>(
 // Fetch versioned data
 export async function fetchVersionedData<T>(path: string, bypassCache: boolean = false): Promise<VersionedData<T> | null> {
   try {
-    // Check cache first (unless bypassed)
+    // Check cache first (unless bypassed).
+    // Skip version verification on cache hit—getLatestVersion() uses head() which counts
+    // as a Simple Op. With 1200+ garden pages, verifying every cache hit would blow
+    // through Vercel Blob's 10k/month Simple Operations quota during a single build.
     if (!bypassCache) {
       const cached = dataCache.get(path);
       if (cached && Date.now() - cached.timestamp < cached.ttl) {
-        // Verify the cached version is still current by checking version file
-        try {
-          if (process.env.BLOB_READ_WRITE_TOKEN) {
-            const latestVersion = await getLatestVersion(path);
-            if (latestVersion && cached.data) {
-              const cachedVersion = (cached.data as VersionedData<T>).version.version;
-              // If versions match, cache is still valid
-              if (latestVersion.version === cachedVersion) {
-                return cached.data as VersionedData<T>;
-              } else {
-                // Version changed, clear cache and fetch fresh
-                dataCache.delete(path);
-              }
-            } else {
-              // Can't check version, use cached data
-              return cached.data as VersionedData<T>;
-            }
-          } else {
-            // No token, use cached data if available
-            return cached.data as VersionedData<T>;
-          }
-        } catch (versionError: any) {
-          // If we can't check version, use cached data if available
-          // This is a fallback for when version check fails
-          if (cached) {
-            return cached.data as VersionedData<T>;
-          }
-        }
+        return cached.data as VersionedData<T>;
       }
     }
 

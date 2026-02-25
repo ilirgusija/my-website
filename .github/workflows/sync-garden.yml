@@ -1,0 +1,63 @@
+# Sync Garden from private vault → Supabase → trigger Vercel
+#
+# No md/json in repo: raw Markdown stays in private vault, compiled JSON
+# goes to Supabase. Vercel build fetches from Supabase.
+#
+# Triggers:
+#   - Manual (workflow_dispatch)
+#   - When vault repo pushes (repository_dispatch from vault's webhook workflow)
+#   - Daily cron (backup in case webhook misses)
+
+name: Sync Garden from Vault
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sync-garden]
+  schedule:
+    - cron: '0 6 * * *' # 6am UTC daily
+
+jobs:
+  sync-garden:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout website
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Clone private vault
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.GARDEN_VAULT_REPO }}
+          token: ${{ secrets.GARDEN_VAULT_TOKEN }}
+          path: vault
+          fetch-depth: 0  # full history for incremental git diff
+
+      - name: Sync vault → Supabase (incremental via git diff)
+        env:
+          OBSIDIAN_VAULT_PATH: ${{ github.workspace }}/vault
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run sync-garden
+
+      - name: Trigger Vercel deployment
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel --token $VERCEL_TOKEN --prod --yes || true

@@ -28,8 +28,11 @@ function Navigation({
   isExternal?: boolean;
 }) {
   const router = useRouter();
+  const pathname = router.asPath.split("?")[0];
   const isActive =
-    link === "/" ? router.asPath === link : router.asPath.includes(link);
+    link === "/"
+      ? pathname === "/"
+      : pathname === link || pathname.startsWith(link + "/");
 
   return (
     <Link href={link} target={isExternal ? "_blank" : "_self"}>
@@ -66,7 +69,7 @@ function Layout({ children }: PropsWithChildren) {
             <Navigation link="/">Home</Navigation>
             <Navigation link="/research">Research</Navigation>
             <Navigation link="/books">Bookshelf</Navigation>
-            {/* <Navigation link="/writing">Writing</Navigation> */}
+            <Navigation link="/garden">Garden</Navigation>
           </VStack>
           <VStack align="flex-start">
             <Text fontWeight="bold" fontSize="smaller">
@@ -120,7 +123,7 @@ function Layout({ children }: PropsWithChildren) {
                   <Navigation link="/">Home</Navigation>
                   <Navigation link="/research">Research</Navigation>
                   <Navigation link="/books">Bookshelf</Navigation>
-                  {/* <Navigation link="/writing">Writing</Navigation> */}
+                  <Navigation link="/garden">Garden</Navigation>
                 </VStack>
               </MenuGroup>
               <MenuGroup title="FIND ME ON">
@@ -155,7 +158,7 @@ function Layout({ children }: PropsWithChildren) {
             <Navigation link="/">Home</Navigation>
             <Navigation link="/research">Research</Navigation>
             <Navigation link="/books">Bookshelf</Navigation>
-            {/* <Navigation link="/writing">Writing</Navigation> */}
+            <Navigation link="/garden">Garden</Navigation>
           </HStack>
         </Flex>
         {children}

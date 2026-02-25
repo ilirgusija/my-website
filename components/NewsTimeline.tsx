@@ -36,7 +36,8 @@ function getTypeLabel(type: NewsItem["type"]): string {
   }
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | undefined): string {
+  if (!dateString) return "";
   // Parse date as local date (not UTC) to avoid timezone issues
   // If dateString is "YYYY-MM-DD", parse it as local date
   const [year, month, day] = dateString.split("-").map(Number);
@@ -99,9 +100,11 @@ export function NewsTimeline({ items }: NewsTimelineProps) {
             {/* Content */}
             <VStack align="stretch" spacing={1}>
               <HStack spacing={2} flexWrap="wrap">
-                <Text fontSize="sm" color="gray.500" fontWeight="medium">
-                  {formatDate(item.date)}
-                </Text>
+                {item.date && (
+                  <Text fontSize="sm" color="gray.500" fontWeight="medium">
+                    {formatDate(item.date)}
+                  </Text>
+                )}
                 <Text fontSize="sm" color="blue.600" fontWeight="medium">
                   {getTypeLabel(item.type)}
                 </Text>

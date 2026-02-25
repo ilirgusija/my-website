@@ -31,6 +31,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# garden – compiled output in Supabase; no content in repo
+content/garden/
+.garden-sync-state
+
+# supabase CLI temp files
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

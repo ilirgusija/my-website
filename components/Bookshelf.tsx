@@ -21,7 +21,7 @@ interface BookshelfProps {
 export function Bookshelf({ books }: BookshelfProps) {
   const router = useRouter();
   const [bookIndex, setBookIndex] = React.useState(-1);
-  const [scroll, setScroll] = React.useState(-200);
+  const [scroll, setScroll] = React.useState(0);
 
   const bookshelfRef = React.useRef<HTMLDivElement>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
@@ -29,13 +29,13 @@ export function Bookshelf({ books }: BookshelfProps) {
   const scrollLeftRef = React.useRef<HTMLDivElement>(null);
   const viewportDimensions = useSize(viewportRef);
   const [isScrolling, setIsScrolling] = React.useState(false);
-  const [booksInViewport, setBooksInViewport] = React.useState(0);
   const scrollEvents = useBreakpointValue({
     base: { start: "touchstart", stop: "touchend" },
     sm: { start: "mouseenter", stop: "mouseleave" },
   }) || { start: "mouseenter", stop: "mouseleave" }; // Fallback for desktop
 
   const width = 41.5;
+  const interBookGap = 4;
   const height = 220;
 
   const spineWidth = `${width}px`;
@@ -44,31 +44,78 @@ export function Bookshelf({ books }: BookshelfProps) {
   const bookHeight = `${height}px`;
 
   const minScroll = 0;
-  const maxScroll = React.useMemo(() => {
+  const viewportWidth = viewportDimensions?.width ?? 0;
+  const openBookExtraWidth = width * 4;
+  const contentWidth = React.useMemo(() => {
+    if (books.length === 0) return 0;
     return (
-      (width + 12) * (books.length - booksInViewport) +
-      (bookIndex > -1 ? width * 4 : 0) +
-      5
+      books.length * width +
+      Math.max(0, books.length - 1) * interBookGap +
+      (bookIndex > -1 ? openBookExtraWidth : 0)
     );
-  }, [bookIndex, books.length, booksInViewport]);
+  }, [bookIndex, books.length]);
+
+  const maxScroll = React.useMemo(() => {
+    return Math.max(0, contentWidth - viewportWidth);
+  }, [contentWidth, viewportWidth]);
+
+  const clampScroll = React.useCallback(
+    (value: number) => Math.max(minScroll, Math.min(maxScroll, value)),
+    [maxScroll]
+  );
 
   const boundedScroll = (scrollX: number) => {
-    setScroll(Math.max(minScroll, Math.min(maxScroll, scrollX)));
+    setScroll(clampScroll(scrollX));
   };
 
   const boundedRelativeScroll = React.useCallback(
     (incrementX: number) => {
       setScroll((_scroll) =>
-        Math.max(minScroll, Math.min(maxScroll, _scroll + incrementX))
+        clampScroll(_scroll + incrementX)
       );
     },
-    [maxScroll]
+    [clampScroll]
+  );
+
+  const targetScrollForOpenBook = React.useCallback(
+    (index: number, currentScroll: number) => {
+      if (index < 0 || viewportWidth <= 0) return 0;
+      const bookLeft = index * (width + interBookGap);
+      const openBookWidth = width * 5;
+      const bookRight = bookLeft + openBookWidth;
+
+      // Keep the opened book fully visible first with minimal scroll movement.
+      // This avoids the progressive drift from repeatedly re-centering.
+      const leftPadding = 8;
+      const rightPadding = 8;
+      const minScrollToShowRightEdge = bookRight - (viewportWidth - rightPadding);
+      const maxScrollToShowLeftEdge = bookLeft - leftPadding;
+
+      let target = currentScroll;
+      if (target < minScrollToShowRightEdge) {
+        target = minScrollToShowRightEdge;
+      }
+      if (target > maxScrollToShowLeftEdge) {
+        target = maxScrollToShowLeftEdge;
+      }
+
+      return clampScroll(target);
+    },
+    [clampScroll, viewportWidth]
   );
 
   React.useEffect(() => {
-    if (router.query.slug && router.query.slug.length > 0) {
-      const currentSlug = (router.query.slug as string[])[0];
+    const slugParam = router.query.slug;
+    if (slugParam && Array.isArray(slugParam) && slugParam.length > 0) {
+      const currentSlug = slugParam[0];
       const fullSlug = currentSlug.startsWith('/books/') ? currentSlug : `/books/${currentSlug}`;
+      const idx = books.findIndex((b) => b.slug === fullSlug);
+      if (idx !== -1 && idx !== bookIndex) {
+        setBookIndex(idx);
+      }
+    } else if (slugParam && typeof slugParam === 'string') {
+      // Single segment can be string in some cases
+      const fullSlug = slugParam.startsWith('/books/') ? slugParam : `/books/${slugParam}`;
       const idx = books.findIndex((b) => b.slug === fullSlug);
       if (idx !== -1 && idx !== bookIndex) {
         setBookIndex(idx);
@@ -82,21 +129,22 @@ export function Bookshelf({ books }: BookshelfProps) {
   }, [router.query.slug, books]);
 
   React.useEffect(() => {
-    if (bookIndex === -1) {
-      boundedRelativeScroll(0);
-    } else {
-      boundedScroll((bookIndex - (booksInViewport - 4.5) / 2) * (width + 11));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookIndex, boundedRelativeScroll]);
+    setScroll((current) => {
+      if (bookIndex === -1) {
+        return clampScroll(current);
+      }
+      return targetScrollForOpenBook(bookIndex, current);
+    });
+  }, [bookIndex, clampScroll, targetScrollForOpenBook]);
 
   React.useEffect(() => {
-    if (viewportDimensions) {
-      boundedRelativeScroll(0);
-      const numberOfBooks = viewportDimensions.width / (width + 11);
-      setBooksInViewport(numberOfBooks);
-    }
-  }, [viewportDimensions, boundedRelativeScroll]);
+    setScroll((current) => {
+      if (bookIndex === -1) {
+        return clampScroll(current);
+      }
+      return targetScrollForOpenBook(bookIndex, current);
+    });
+  }, [bookIndex, clampScroll, targetScrollForOpenBook, maxScroll, viewportWidth]);
 
   // Scroll interval ref to manage the scrolling animation
   const scrollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -193,7 +241,7 @@ export function Bookshelf({ books }: BookshelfProps) {
         </Box>
         <HStack
           alignItems="center"
-          gap={1}
+          gap={`${interBookGap}px`}
           overflowX="hidden"
           cursor="grab"
           ref={viewportRef}
