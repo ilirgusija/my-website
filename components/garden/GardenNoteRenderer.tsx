@@ -118,9 +118,9 @@ export function GardenNoteRenderer({ html, onLinkClick }: GardenNoteRendererProp
         // Blockquotes (non-callout)
         'blockquote': {
           borderLeft: '4px solid',
-          borderColor: 'gray.300',
+          borderColor: 'border.subtle',
           pl: 4, py: 2, my: 4,
-          bg: 'gray.50',
+          bg: 'transparent',
           borderRadius: 'md',
           fontStyle: 'italic',
         },
@@ -196,6 +196,13 @@ export function GardenNoteRenderer({ html, onLinkClick }: GardenNoteRendererProp
           mx: 'auto',
           my: 4,
           borderRadius: 'md',
+        },
+        // Hidden anchor used for Obsidian block refs (#^abc123).
+        '.block-ref-anchor': {
+          display: 'block',
+          height: 0,
+          overflow: 'hidden',
+          lineHeight: 0,
         },
       }}
     >

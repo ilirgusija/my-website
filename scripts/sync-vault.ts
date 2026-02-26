@@ -48,7 +48,7 @@ import { buildGraph } from '../lib/garden/build-graph';
 import type { GardenNoteData, GardenManifest } from '../lib/garden/index';
 import {
     hasSupabaseConfig,
-    fetchAllGardenNotes,
+    fetchGardenNoteGraphSnapshots,
     syncGardenToSupabase,
     fetchGardenSyncState,
     saveGardenSyncState,
@@ -681,12 +681,16 @@ async function syncVault() {
         incremental && diffResult
             ? new Set(diffResult.changed)
             : null;
-    // For incremental + Supabase: pre-fetch existing notes from DB
-    let existingNotesMap = new Map<string, GardenNoteData>();
+    // For incremental + Supabase: pre-fetch lightweight graph fields from DB
+    let existingGraphMap = new Map<string, {
+        title: string;
+        outlinks: string[];
+        tags: string[];
+    }>();
     if (incremental && hasSupabaseConfig()) {
-        console.log('   Fetching existing notes from Supabase...');
-        existingNotesMap = await fetchAllGardenNotes();
-        console.log(`   Loaded ${existingNotesMap.size} existing notes\n`);
+        console.log('   Fetching existing graph snapshots from Supabase...');
+        existingGraphMap = await fetchGardenNoteGraphSnapshots();
+        console.log(`   Loaded ${existingGraphMap.size} existing snapshots\n`);
     }
     let toDelete: Set<string>;
     if (incremental && diffResult) {
@@ -717,23 +721,34 @@ async function syncVault() {
     console.log('   Processing notes...');
 
     for (const { entry, rawContent, frontmatter, bodyContent } of rawNotes) {
-        // Skip if incremental and unchanged – load from Supabase or local
+        // Skip unchanged notes in incremental mode. We only need existing
+        // title/outlinks/tags to rebuild graph metadata.
         if (toProcess !== null && !toProcess.has(entry.sourceFile)) {
-            const existing =
-                existingNotesMap.get(entry.slug) ??
-                loadExistingNoteLocal(entry.slug);
-            if (existing) {
-                processedNotes.push(existing);
+            const existingSnapshot = existingGraphMap.get(entry.slug);
+            if (existingSnapshot) {
                 graphData.push({
                     slug: entry.slug,
-                    title: existing.title,
-                    outlinks: existing.outlinks,
-                    tags: existing.tags,
+                    title: existingSnapshot.title,
+                    outlinks: existingSnapshot.outlinks,
+                    tags: existingSnapshot.tags,
                     folder: entry.folder,
                     noteType: entry.noteType,
                 });
+                continue;
             }
-            continue;
+
+            const existingLocal = loadExistingNoteLocal(entry.slug);
+            if (existingLocal) {
+                graphData.push({
+                    slug: entry.slug,
+                    title: existingLocal.title,
+                    outlinks: existingLocal.outlinks,
+                    tags: existingLocal.tags,
+                    folder: entry.folder,
+                    noteType: entry.noteType,
+                });
+                continue;
+            }
         }
         // Step A: Resolve wikilinks (converts [[Target]] to [Target](/garden/slug))
         // Image embeds ![[img.png]] resolve to real image URLs via imageMap
@@ -754,11 +769,21 @@ async function syncVault() {
             });
         }
 
-        // Step B: Clean content — remove tag lines and block reference IDs
+        // Step B: Clean content
+        // - Remove tag-only lines (not headings)
+        // - Preserve Obsidian block refs as hidden anchors so #^id links can
+        //   target specific blocks/callouts in previews.
         const cleanedContent = resolvedContent
             .split('\n')
-            .filter((line) => !line.match(/^#[A-Za-z]/)) // remove tag-only lines (not headings)
-            .filter((line) => !line.trim().match(/^\^[a-f0-9]{6}$/)) // remove Obsidian block refs
+            .flatMap((line) => {
+                if (line.match(/^#[A-Za-z]/)) return [];
+                const blockRef = line.trim().match(/^\^([a-f0-9]{6})$/i);
+                if (blockRef) {
+                    const id = `^${blockRef[1].toLowerCase()}`;
+                    return [`<span id="${id}" class="block-ref-anchor"></span>`];
+                }
+                return [line];
+            })
             .join('\n');
 
         // Step C: Render to HTML via Pandoc + Lua filter

@@ -159,7 +159,19 @@ export function LinkPreviewPopup({
     temp.innerHTML = note.html;
     const target = temp.querySelector(`[id="${selectorSafeAnchor}"]`) as HTMLElement | null;
     if (target && isHoverPreview) {
-      const callout = target.classList.contains('callout') ? target : target.closest('.callout');
+      let callout = target.classList.contains('callout') ? target : target.closest('.callout');
+      if (!callout) {
+        // Obsidian block refs are often emitted as a standalone anchor right
+        // after a callout block. In that case, preview the immediately preceding
+        // callout element for block-only hover behavior.
+        const parent = target.parentElement;
+        const previous =
+          (parent?.previousElementSibling as HTMLElement | null) ||
+          (target.previousElementSibling as HTMLElement | null);
+        if (previous?.classList.contains('callout')) {
+          callout = previous;
+        }
+      }
       if (callout) {
         // Hover should preview only the referenced block/callout.
         renderHtml = callout.outerHTML;
