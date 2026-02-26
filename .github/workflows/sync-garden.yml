@@ -6,7 +6,6 @@
 # Triggers:
 #   - Manual (workflow_dispatch)
 #   - When vault repo pushes (repository_dispatch from vault's webhook workflow)
-#   - Daily cron (backup in case webhook misses)
 
 name: Sync Garden from Vault
 
@@ -14,8 +13,6 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [sync-garden]
-  schedule:
-    - cron: '0 6 * * *' # 6am UTC daily
 
 jobs:
   sync-garden:

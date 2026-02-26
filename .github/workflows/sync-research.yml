@@ -4,9 +4,6 @@ on:
   workflow_dispatch: # Allows manual triggering
   repository_dispatch:
     types: [sync-research] # Triggered when research repo pushes to main
-  schedule:
-    # Run daily at midnight UTC to check for updates (backup)
-    - cron: '0 0 * * *'
 
 jobs:
   sync-research:
