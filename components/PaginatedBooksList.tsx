@@ -134,7 +134,7 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                             <Box position="relative">
                                 <Image
                                     border="1px solid"
-                                    borderColor="gray.200"
+                                    borderColor="border.subtle"
                                     src={book.coverImage}
                                     alt={book.title}
                                     height={{ base: "100px", sm: "140px", md: "160px" }}
@@ -154,10 +154,10 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                                     <Link href={book.slug}>
                                         <Heading size="md">{book.title}</Heading>
                                     </Link>
-                                    <Text color="#999" size="md">
+                                    <Text color="text.muted" size="md">
                                         {book.author}
                                     </Text>
-                                    <Text color="#666" mb={4}>
+                                    <Text color="text.muted" mb={4}>
                                         Read: {book.date} • Rating: {book.rating}/10
                                     </Text>
                                     <Box>
@@ -223,7 +223,7 @@ export function PaginatedBooksList({ books, booksPerPage = 5 }: PaginatedBooksLi
                     {/* Page Info */}
                     <Text
                         textAlign="center"
-                        color="gray.500"
+                        color="text.muted"
                         fontSize="sm"
                         mt={2}
                     >

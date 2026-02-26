@@ -7,7 +7,12 @@ interface Backlink {
   title: string;
 }
 
-export function BacklinksSection({ backlinks }: { backlinks: Backlink[] }) {
+interface BacklinksSectionProps {
+  backlinks: Backlink[];
+  onLinkClick?: (slug: string) => void;
+}
+
+export function BacklinksSection({ backlinks, onLinkClick }: BacklinksSectionProps) {
   if (backlinks.length === 0) return null;
 
   return (
@@ -21,18 +26,44 @@ export function BacklinksSection({ backlinks }: { backlinks: Backlink[] }) {
         Linked from
       </Heading>
       <VStack align="flex-start" spacing={1}>
-        {backlinks.map(({ slug, title }) => (
-          <Link key={slug} href={`/garden/${slug}`}>
-            <Text
-              color="blue.500"
-              fontSize="sm"
-              _hover={{ textDecoration: 'underline', color: 'blue.600' }}
-              cursor="pointer"
-            >
-              {title}
-            </Text>
-          </Link>
-        ))}
+        {backlinks.map(({ slug, title }) => {
+          if (onLinkClick) {
+            return (
+              <Text
+                as="button"
+                type="button"
+                key={slug}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onLinkClick(slug);
+                }}
+                color="blue.500"
+                fontSize="sm"
+                _hover={{ textDecoration: 'underline', color: 'blue.600' }}
+                cursor="pointer"
+                textAlign="left"
+                background="none"
+                border="none"
+                p={0}
+              >
+                {title}
+              </Text>
+            );
+          }
+
+          return (
+            <Link key={slug} href={`/garden/${slug}`}>
+              <Text
+                color="blue.500"
+                fontSize="sm"
+                _hover={{ textDecoration: 'underline', color: 'blue.600' }}
+                cursor="pointer"
+              >
+                {title}
+              </Text>
+            </Link>
+          );
+        })}
       </VStack>
     </Box>
   );

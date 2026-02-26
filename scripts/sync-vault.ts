@@ -211,6 +211,46 @@ function walkImages(dir: string, baseDir?: string): { relativePath: string; full
     return results;
 }
 
+function extractBlockReferenceTitles(
+    noteSlug: string,
+    markdown: string
+): Record<string, string> {
+    const map: Record<string, string> = {};
+    const lines = markdown.split('\n');
+
+    let lastHeading = '';
+    let lastCalloutTitle = '';
+    let inCallout = false;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+
+        const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+        if (headingMatch) {
+            lastHeading = headingMatch[1].trim();
+        }
+
+        const calloutTitleMatch = line.match(/^>\s*\[![^\]]+\]\s*(.*)$/);
+        if (calloutTitleMatch) {
+            inCallout = true;
+            lastCalloutTitle = calloutTitleMatch[1].trim();
+        } else if (inCallout && line !== '' && !line.startsWith('>')) {
+            inCallout = false;
+        }
+
+        const blockRefMatch = line.match(/^\^([a-f0-9]{6})$/i);
+        if (!blockRefMatch) continue;
+
+        const blockId = blockRefMatch[1].toLowerCase();
+        const preferredTitle = (lastCalloutTitle || lastHeading).trim();
+        if (!preferredTitle) continue;
+
+        map[`${noteSlug}#^${blockId}`] = preferredTitle;
+    }
+
+    return map;
+}
+
 /**
  * Render markdown to HTML using Pandoc.
  *
@@ -229,7 +269,7 @@ function renderWithPandoc(markdown: string): string {
             'pandoc',
             [
                 '--from',
-                'markdown+lists_without_preceding_blankline+tex_math_dollars+pipe_tables+strikeout+task_lists-yaml_metadata_block',
+                'markdown+lists_without_preceding_blankline+tex_math_dollars+pipe_tables+strikeout+task_lists-yaml_metadata_block-blank_before_header',
                 '--to',
                 'html',
                 '--katex',
@@ -410,6 +450,7 @@ async function syncVault() {
     }
 
     // 3b. Load Obsidian icon assignments, extract SVGs, and apply to entries
+    const folderIcons: Record<string, { icon?: string; iconSvg?: string; iconEmoji?: string }> = {};
     const iconDataPath = path.join(VAULT_PATH, '.obsidian', 'plugins', 'obsidian-icon-folder', 'data.json');
     const iconsBaseDir = path.join(VAULT_PATH, '.obsidian', 'icons');
     if (fs.existsSync(iconDataPath)) {
@@ -493,7 +534,7 @@ async function syncVault() {
                     iconId = iconPathMap[vaultFilePath];
                 }
 
-                // 2. Try rule-based matching (more specific than folder inheritance)
+                // 2. Try rule-based matching
                 if (!iconId) {
                     for (const rule of rules) {
                         // Plugin stores escaped spaces as `\ ` — unescape to plain space
@@ -533,6 +574,62 @@ async function syncVault() {
                 }
             }
 
+            // Build explicit folder icon map so /garden folder nodes don't have to infer icons
+            // from arbitrary descendant notes.
+            const folderPathCandidates = new Set<string>();
+            for (const entry of manifestEntries) {
+                let current = path.dirname(entry.sourceFile);
+                while (current && current !== '.') {
+                    folderPathCandidates.add(current);
+                    current = path.dirname(current);
+                }
+            }
+
+            for (const folderPath of folderPathCandidates) {
+                let iconId: string | null = null;
+
+                // 1) Exact folder assignment
+                if (iconPathMap[folderPath]) {
+                    iconId = iconPathMap[folderPath];
+                }
+
+                // 2) Rule fallback for folders (before inheritance)
+                if (!iconId) {
+                    for (const rule of rules) {
+                        const pattern = rule.rule.replace(/\\ /g, ' ');
+                        const matchTarget = rule.useFilePath
+                            ? `${folderPath}/`
+                            : path.basename(folderPath);
+                        if (matchTarget.includes(pattern)) {
+                            iconId = rule.icon;
+                            break;
+                        }
+                    }
+                }
+
+                // 3) Folder inheritance from parent folders
+                if (!iconId) {
+                    let current = path.dirname(folderPath);
+                    while (current && current !== '.') {
+                        if (iconPathMap[current]) {
+                            iconId = iconPathMap[current];
+                            break;
+                        }
+                        current = path.dirname(current);
+                    }
+                }
+
+                if (!iconId) continue;
+
+                const slugFolderPath = pathToSlug(folderPath);
+                const resolved = resolveIconToSvg(iconId);
+                folderIcons[slugFolderPath] = {
+                    icon: iconId,
+                    iconSvg: resolved.svg,
+                    iconEmoji: resolved.emoji,
+                };
+            }
+
             const iconsAssigned = manifestEntries.filter(e => e.iconSvg || e.iconEmoji || e.icon).length;
             console.log(`   Assigned icons to ${iconsAssigned}/${manifestEntries.length} entries`);
         } catch (err) {
@@ -549,6 +646,25 @@ async function syncVault() {
     console.log(
         `   Aliases: ${Object.keys(manifest.byAlias).length}\n`
     );
+
+    const blockReferenceTitles: Record<string, string> = {};
+    const blockReferenceTitlesByTarget: Record<string, string> = {};
+    for (const { entry, bodyContent } of rawNotes) {
+        const titles = extractBlockReferenceTitles(entry.slug, bodyContent);
+        Object.assign(blockReferenceTitles, titles);
+        for (const [key, value] of Object.entries(titles)) {
+            const anchorIdx = key.indexOf('#^');
+            if (anchorIdx === -1) continue;
+            const anchor = key.substring(anchorIdx).toLowerCase();
+            blockReferenceTitlesByTarget[`${entry.originalTitle.toLowerCase()}${anchor}`] = value;
+            for (const alias of entry.aliases || []) {
+                const aliasKey = alias.trim().toLowerCase();
+                if (aliasKey) {
+                    blockReferenceTitlesByTarget[`${aliasKey}${anchor}`] = value;
+                }
+            }
+        }
+    }
 
     // 5. Process notes: full process for changed, load existing for unchanged
     const processedNotes: GardenNoteData[] = [];
@@ -625,7 +741,10 @@ async function syncVault() {
             content: resolvedContent,
             outlinks,
             unresolvedLinks,
-        } = resolveWikilinks(bodyContent, manifest, entry.folder, imageMap);
+        } = resolveWikilinks(bodyContent, manifest, entry.folder, imageMap, {
+            blockReferenceTitles,
+            blockReferenceTitlesByTarget,
+        });
 
         if (unresolvedLinks.length > 0) {
             totalUnresolved += unresolvedLinks.length;
@@ -712,6 +831,7 @@ async function syncVault() {
     // 7. Build manifest data
     const gardenManifest: GardenManifest = {
         entries: manifestEntries,
+        folderIcons,
         generatedAt: new Date().toISOString(),
         totalNotes: manifestEntries.length,
     };

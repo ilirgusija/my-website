@@ -44,21 +44,15 @@ function buildTree(entries: ManifestEntry[]): TreeNode {
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       if (!current.children.has(part)) {
+        const childPath = parts.slice(0, i + 1).join('/');
         current.children.set(part, {
           name: part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          path: parts.slice(0, i + 1).join('/'),
+          path: childPath,
           children: new Map(),
           notes: [],
         });
       }
       current = current.children.get(part)!;
-    }
-
-    // Propagate icon to folder node from first entry that has one
-    if ((entry.iconSvg || entry.iconEmoji || entry.icon) && !current.icon && !current.iconSvg && !current.iconEmoji) {
-      current.icon = entry.icon;
-      current.iconSvg = entry.iconSvg;
-      current.iconEmoji = entry.iconEmoji;
     }
 
     current.notes.push(entry);
@@ -100,23 +94,23 @@ function TreeView({
           mb={1}
           cursor="pointer"
           onClick={() => togglePath(node.path)}
-          _hover={{ color: 'black' }}
+          _hover={{}}
           role="button"
         >
-          <Text fontSize="xs" color="gray.400" w="12px" textAlign="center">
+          <Text fontSize="xs" color="text.muted" w="12px" textAlign="center">
             {isExpanded ? '▾' : '▸'}
           </Text>
           <GardenIcon svg={node.iconSvg} emoji={node.iconEmoji} name={node.icon} size={14} />
           <Text
             fontWeight="600"
             fontSize="sm"
-            color="gray.600"
+            color="text.muted"
             textTransform="uppercase"
             letterSpacing="wider"
           >
             {node.name}
           </Text>
-          <Text fontSize="xs" color="gray.400">
+          <Text fontSize="xs" color="text.muted">
             {countNotes(node)}
           </Text>
         </HStack>
@@ -138,8 +132,8 @@ function TreeView({
               <GardenIcon svg={entry.iconSvg} emoji={entry.iconEmoji} name={entry.icon} size={12} />
               <Text
                 fontSize="sm"
-                color="blue.500"
-                _hover={{ textDecoration: 'underline' }}
+                color="accent.link"
+                _hover={{ textDecoration: 'underline', color: 'accent.linkHover' }}
                 cursor="pointer"
               >
                 {entry.originalTitle}
@@ -179,7 +173,26 @@ const GardenIndex: NextPageWithLayout<GardenIndexProps> = ({ manifest, totalLink
   }, []);
 
   const tree = useMemo(
-    () => manifest ? buildTree(manifest.entries) : null,
+    () => {
+      if (!manifest) return null;
+      const tree = buildTree(manifest.entries);
+      const folderIcons = manifest.folderIcons || {};
+
+      const applyFolderIcons = (node: TreeNode) => {
+        if (node.path && folderIcons[node.path]) {
+          const folderIcon = folderIcons[node.path];
+          node.icon = folderIcon.icon;
+          node.iconSvg = folderIcon.iconSvg;
+          node.iconEmoji = folderIcon.iconEmoji;
+        }
+        for (const child of node.children.values()) {
+          applyFolderIcons(child);
+        }
+      };
+
+      applyFolderIcons(tree);
+      return tree;
+    },
     [manifest]
   );
 
@@ -187,7 +200,7 @@ const GardenIndex: NextPageWithLayout<GardenIndexProps> = ({ manifest, totalLink
     return (
       <Box>
         <Heading>Garden</Heading>
-        <Text color="gray.500" mt={4}>
+        <Text color="text.muted" mt={4}>
           No notes synced yet. Run the sync script to populate the garden.
         </Text>
       </Box>
@@ -200,18 +213,18 @@ const GardenIndex: NextPageWithLayout<GardenIndexProps> = ({ manifest, totalLink
       <Box maxW="800px">
         <VStack align="flex-start" spacing={2} mb={6}>
           <Heading size="lg">Garden</Heading>
-          <Text color="gray.500" fontSize="sm" lineHeight={1.6} maxW="600px">
+          <Text color="text.muted" fontSize="sm" lineHeight={1.6} maxW="600px">
             A collection of interconnected notes that grow and evolve over time.
             Unlike a blog, these notes are continuously refined rather than published as finished pieces.
             Click any link to explore, and hover to preview.
           </Text>
-          <Text color="gray.400" fontSize="xs">
+          <Text color="text.muted" fontSize="xs">
             {manifest.totalNotes} notes &middot; {totalLinks} links
           </Text>
         </VStack>
 
         <InputGroup mb={6} maxW="400px">
-          <InputLeftElement pointerEvents="none" color="gray.400">
+          <InputLeftElement pointerEvents="none" color="text.muted">
             &#x1F50D;
           </InputLeftElement>
           <Input

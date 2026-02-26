@@ -50,12 +50,15 @@ export function GardenIcon({ svg, emoji, name, size = 16 }: GardenIconProps) {
         display="inline-flex"
         alignItems="center"
         justifyContent="center"
+        lineHeight={1}
         sx={{
           '& svg': {
             width: `${size}px`,
             height: `${size}px`,
-            fill: 'currentColor',
-            stroke: 'currentColor',
+            display: 'block',
+          },
+          '& svg *': {
+            vectorEffect: 'non-scaling-stroke',
           },
         }}
         dangerouslySetInnerHTML={{ __html: cleanSvg }}

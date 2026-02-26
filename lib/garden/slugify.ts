@@ -5,9 +5,14 @@
 
 // Slugify a single filename (without extension)
 export function slugifyName(name: string): string {
-  return name
+  // Normalize Unicode accents/diacritics so "Itô" becomes "ito" instead of "it".
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return normalized
     .toLowerCase()
-    .replace(/[''"]/g, '')           // remove quotes/apostrophes
+    .replace(/['"]/g, '')            // remove quotes/apostrophes
     .replace(/[^a-z0-9\s-]/g, '')    // remove special chars except spaces and hyphens
     .replace(/\s+/g, '-')            // spaces to hyphens
     .replace(/-+/g, '-')             // collapse multiple hyphens

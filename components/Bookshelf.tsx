@@ -227,7 +227,7 @@ export function Bookshelf({ books }: BookshelfProps) {
             borderRadius="md"
             height="100%"
             width="28px"
-            _hover={{ bg: "gray.100" }}
+            _hover={{ bg: "bg.surface" }}
             borderRightRadius={{ base: 0, md: undefined }}
             as="div"
             cursor="pointer"
@@ -398,7 +398,7 @@ export function Bookshelf({ books }: BookshelfProps) {
             height="100%"
             borderRadius="md"
             width="28px"
-            _hover={{ bg: "gray.100" }}
+            _hover={{ bg: "bg.surface" }}
             as="div"
             cursor="pointer"
             onMouseEnter={startScrollingRight}

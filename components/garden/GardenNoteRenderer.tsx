@@ -5,14 +5,10 @@ import parse, { domToReact, type DOMNode, type Element } from 'html-react-parser
 
 interface GardenNoteRendererProps {
   html: string;
+  onLinkClick?: (slug: string) => void;
 }
 
-/**
- * Renders pre-processed garden note HTML.
- * Internal /garden links are replaced with Next.js Link for client-side navigation.
- * Hover popups are handled by LinkPreviewProvider via event delegation.
- */
-export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
+export function GardenNoteRenderer({ html, onLinkClick }: GardenNoteRendererProps) {
   const parsed = useMemo(() => {
     const options = {
       replace(domNode: DOMNode) {
@@ -21,8 +17,35 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
         const href = node.attribs?.href;
         if (href?.startsWith('/garden')) {
           const { class: className } = node.attribs;
+          const slug = href.replace(/^\/garden\/?/, '');
+
+          // If an onLinkClick handler is provided, use it instead of Next.js navigation.
+          if (onLinkClick) {
+            const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+              event.preventDefault();
+              onLinkClick(slug);
+            };
+
+            return (
+              <a
+                href={href}
+                className={className || undefined}
+                data-garden-link="true"
+                onClick={handleClick}
+              >
+                {domToReact(node.children as DOMNode[], options)}
+              </a>
+            );
+          }
+
+          // Default: use Next.js Link for client-side navigation.
           return (
-            <Link href={href} className={className || undefined} prefetch={false}>
+            <Link
+              href={href}
+              className={className || undefined}
+              data-garden-link="true"
+              prefetch={false}
+            >
               {domToReact(node.children as DOMNode[], options)}
             </Link>
           );
@@ -30,7 +53,7 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
       },
     };
     return parse(html, options);
-  }, [html]);
+  }, [html, onLinkClick]);
 
   return (
     <Box
@@ -46,11 +69,11 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
 
         // Links (resolved wikilinks)
         'a': {
-          color: 'blue.500',
+          color: 'accent.link',
           textDecoration: 'none',
           borderBottom: '1px dotted',
-          borderColor: 'blue.300',
-          _hover: { color: 'blue.600', borderColor: 'blue.500' },
+          borderColor: 'border.subtle',
+          _hover: { color: 'accent.linkHover', borderColor: 'accent.link' },
         },
 
         // Callout reference links (![[concept]] → link to concept page)
@@ -62,12 +85,12 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
           mr: 2,
           fontSize: 'sm',
           fontWeight: 500,
-          color: 'blue.600',
-          bg: 'blue.50',
+          color: 'accent.link',
+          bg: 'transparent',
           borderRadius: 'md',
           border: '1px solid',
-          borderColor: 'blue.200',
-          _hover: { bg: 'blue.100', color: 'blue.700', borderColor: 'blue.300' },
+          borderColor: 'border.subtle',
+          _hover: { bg: 'bg.surface', color: 'accent.linkHover', borderColor: 'accent.link' },
         },
 
         // Unresolved wikilinks
@@ -102,42 +125,48 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
           fontStyle: 'italic',
         },
 
-        // Callout blocks — LaTeX theorem referencer–inspired styling
+        // Callout blocks — restrained LaTeX-like theorem environment styling
         '.callout': {
-          borderLeft: '4px solid',
-          borderRadius: 'md',
+          border: '1px solid',
+          borderLeftWidth: '3px',
+          borderColor: 'border.subtle',
+          borderRadius: 'sm',
           my: 4,
-          overflow: 'hidden',
-          p: 4,
+          p: 3,
           position: 'relative',
+          bg: 'transparent',
+          lineHeight: 1.65,
         },
-        // Theorem-like callouts: serif font (CMU Serif, Times, Georgia)
+        // Theorem-like callouts use a serif body similar to standard math papers.
         '.callout-definition, .callout-theorem, .callout-proposition, .callout-lemma, .callout-corollary, .callout-proof, .callout-axiom, .callout-remark': {
           fontFamily: '"CMU Serif", "Times New Roman", Times, Georgia, serif',
+          fontSize: '1.02em',
         },
-        '.callout-definition': { borderColor: 'blue.500', bg: 'blue.50' },
-        '.callout-theorem': { borderColor: 'green.600', bg: 'green.50' },
-        '.callout-proposition': { borderColor: 'cyan.600', bg: 'cyan.50' },
-        '.callout-lemma, .callout-lem': { borderColor: 'green.500', bg: 'green.50' },
-        '.callout-corollary': { borderColor: 'green.500', bg: 'green.50' },
-        '.callout-proof': { borderColor: 'purple.500', bg: 'purple.50', fontStyle: 'italic' },
-        '.callout-example': { borderColor: 'yellow.500', bg: 'yellow.50' },
-        '.callout-note': { borderColor: 'gray.400', bg: 'gray.50' },
-        '.callout-warning': { borderColor: 'orange.500', bg: 'orange.50' },
-        '.callout-tip': { borderColor: 'teal.500', bg: 'teal.50' },
-        '.callout-important': { borderColor: 'red.500', bg: 'red.50' },
-        '.callout-axiom': { borderColor: 'orange.600', bg: 'orange.50' },
-        '.callout-remark': { borderColor: 'gray.500', bg: 'gray.50' },
-        '.callout-prp': { borderColor: 'cyan.600', bg: 'cyan.50', fontFamily: '"CMU Serif", "Times New Roman", Times, Georgia, serif' },
+        '.callout-definition': { borderLeftColor: 'blue.500' },
+        '.callout-theorem': { borderLeftColor: 'green.600' },
+        '.callout-proposition, .callout-prp': { borderLeftColor: 'cyan.600' },
+        '.callout-lemma, .callout-lem': { borderLeftColor: 'green.500' },
+        '.callout-corollary': { borderLeftColor: 'green.500' },
+        '.callout-proof': { borderLeftColor: 'purple.500', fontStyle: 'italic' },
+        '.callout-example': { borderLeftColor: 'yellow.600' },
+        '.callout-note': { borderLeftColor: 'gray.500', bg: 'transparent' },
+        '.callout-warning': { borderLeftColor: 'orange.500', bg: 'transparent' },
+        '.callout-tip': { borderLeftColor: 'teal.500', bg: 'transparent' },
+        '.callout-important': { borderLeftColor: 'red.500', bg: 'transparent' },
+        '.callout-axiom': { borderLeftColor: 'orange.600' },
+        '.callout-remark': { borderLeftColor: 'gray.500' },
 
-        // Callout titles — bold label + optional title
-        '.callout[data-callout-title]::before': {
-          content: 'attr(data-callout-title)',
+        // Callout titles are emitted as real HTML in sync, so LaTeX can render.
+        '.callout .callout-title': {
           display: 'block',
           fontWeight: 700,
-          fontSize: 'sm',
-          mb: 2,
+          fontSize: '0.92em',
+          letterSpacing: '0.02em',
+          mb: 1.5,
           fontFamily: '"CMU Serif", "Times New Roman", Times, Georgia, serif',
+        },
+        '.callout > p:first-of-type': {
+          mb: 2,
         },
 
         // Bold and italic
@@ -145,7 +174,7 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
         'em': { fontStyle: 'italic' },
 
         // Horizontal rule
-        'hr': { my: 4, borderColor: 'gray.300' },
+        'hr': { my: 4, borderColor: 'border.subtle' },
 
         // KaTeX overrides
         '.katex-display': {
@@ -156,8 +185,8 @@ export function GardenNoteRenderer({ html }: GardenNoteRendererProps) {
 
         // Tables
         'table': { width: '100%', mb: 4, borderCollapse: 'collapse' },
-        'th': { bg: 'gray.100', p: 2, borderBottom: '2px solid', borderColor: 'gray.300', textAlign: 'left' },
-        'td': { p: 2, borderBottom: '1px solid', borderColor: 'gray.200' },
+        'th': { bg: 'bg.surface', p: 2, borderBottom: '2px solid', borderColor: 'border.subtle', textAlign: 'left' },
+        'td': { p: 2, borderBottom: '1px solid', borderColor: 'border.subtle' },
 
         // Images
         'img': {

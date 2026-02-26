@@ -61,11 +61,12 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
   return (
     <Box
       borderWidth="1px"
+      borderColor="border.subtle"
       borderRadius="lg"
       p={{ base: 4, md: 6 }}
-      _hover={{ shadow: "md", borderColor: "blue.300" }}
+      _hover={{ shadow: "md", borderColor: "accent.link" }}
       transition="all 0.2s"
-      bg="white"
+      bg="bg.surface"
       position="relative"
     >
       {isInProgress && (
@@ -103,20 +104,20 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
             </Badge>
           </HStack>
 
-          <Text fontSize="sm" color="gray.600" fontStyle="italic">
+          <Text fontSize="sm" color="text.muted" fontStyle="italic">
             {(research.authors ?? []).join(", ")}
           </Text>
         </VStack>
 
         {/* Abstract */}
-        <Text fontSize="sm" color="gray.700" noOfLines={3} lineHeight="tall">
+        <Text fontSize="sm" color="text.primary" noOfLines={3} lineHeight="tall">
           {research.abstract ?? ""}
         </Text>
 
         {/* PDF Preview */}
         {research.pdfUrl && (
           <Box mt={2}>
-            <Text fontSize="xs" color="gray.500" mb={2} fontWeight="medium">
+            <Text fontSize="xs" color="text.muted" mb={2} fontWeight="medium">
               Preview
             </Text>
             <PDFPreview
@@ -128,9 +129,9 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
         )}
 
         {/* Footer */}
-        <VStack align="stretch" spacing={3} pt={2} borderTopWidth="1px" borderColor="gray.100">
+        <VStack align="stretch" spacing={3} pt={2} borderTopWidth="1px" borderColor="border.subtle">
           <HStack justify="space-between" flexWrap="wrap" spacing={4}>
-            <HStack spacing={4} fontSize="xs" color="gray.500" flexWrap="wrap">
+            <HStack spacing={4} fontSize="xs" color="text.muted" flexWrap="wrap">
               {research.lastUpdated && (
                 <HStack spacing={1}>
                   <Icon as={FiClock} boxSize={3} />
@@ -141,7 +142,7 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
                 <Link
                   href={`https://arxiv.org/abs/${research.arxivId}`}
                   isExternal
-                  _hover={{ color: "blue.600" }}
+                  _hover={{ color: "accent.linkHover" }}
                 >
                   <HStack spacing={1}>
                     <Icon as={FiInfo} boxSize={3} />
@@ -166,7 +167,7 @@ export function ResearchPreview({ research }: ResearchPreviewProps) {
                 View PDF
               </Button>
             ) : isInProgress ? (
-              <Text fontSize="xs" color="gray.500" fontStyle="italic">
+              <Text fontSize="xs" color="text.muted" fontStyle="italic">
                 PDF coming soon
               </Text>
             ) : null}

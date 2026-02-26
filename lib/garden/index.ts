@@ -33,6 +33,11 @@ export interface GardenNoteData {
 
 export interface GardenManifest {
   entries: ManifestEntry[];
+  folderIcons?: Record<string, {
+    icon?: string;
+    iconSvg?: string;
+    iconEmoji?: string;
+  }>;
   generatedAt: string;
   totalNotes: number;
 }

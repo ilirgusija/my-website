@@ -21,8 +21,10 @@ export function ResearchInterests({ interests }: ResearchInterestsProps) {
             px={3}
             py={1}
             borderRadius="full"
-            colorScheme="blue"
-            variant="subtle"
+            color="accent.link"
+            bg="bg.surface"
+            border="1px solid"
+            borderColor="border.subtle"
             fontSize="sm"
           >
             {interest}

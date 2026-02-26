@@ -10,11 +10,13 @@ import {
     MenuList,
     MenuGroup,
     Icon,
+    useColorModeValue,
 } from '@chakra-ui/react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { PropsWithChildren } from 'react';
-import { FiMenu } from 'react-icons/fi';
+import { FiMenu, FiGithub, FiLinkedin, FiMail } from 'react-icons/fi';
+import { ThemeToggleButton } from '../ThemeToggleButton';
 
 function NavLink({
     link,
@@ -27,6 +29,8 @@ function NavLink({
 }) {
     const router = useRouter();
     const pathname = router.asPath.split('?')[0];
+    const activeColor = useColorModeValue('text.primary', 'text.primary');
+    const inactiveColor = useColorModeValue('text.muted', 'text.muted');
     const isActive =
         link === '/' ? pathname === '/' : pathname === link || pathname.startsWith(link + '/');
 
@@ -34,8 +38,8 @@ function NavLink({
         <Link href={link} target={isExternal ? '_blank' : '_self'}>
             <Text
                 fontSize="lg"
-                color={isActive ? 'black' : 'gray.500'}
-                _hover={{ color: 'black' }}
+                color={isActive ? activeColor : inactiveColor}
+                _hover={{ color: 'text.primary' }}
             >
                 {children}
             </Text>
@@ -72,13 +76,26 @@ export function GardenLayout({ children }: PropsWithChildren) {
                         <Text fontWeight="bold" fontSize="smaller">
                             FIND ME ON
                         </Text>
-                        <NavLink link="https://github.com/ilirgusija" isExternal>
-                            GitHub
-                        </NavLink>
-                        <NavLink link="https://linkedin.com/in/ilir-gusija" isExternal>
-                            LinkedIn
-                        </NavLink>
+                        <Link href="https://github.com/ilirgusija" target="_blank">
+                            <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                                <Icon as={FiGithub} boxSize={4} />
+                                <Text>GitHub</Text>
+                            </HStack>
+                        </Link>
+                        <Link href="https://linkedin.com/in/ilir-gusija" target="_blank">
+                            <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                                <Icon as={FiLinkedin} boxSize={4} />
+                                <Text>LinkedIn</Text>
+                            </HStack>
+                        </Link>
+                        <Link href="mailto:ilir.gusija@queensu.ca" target="_blank">
+                            <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                                <Icon as={FiMail} boxSize={4} />
+                                <Text>Email</Text>
+                            </HStack>
+                        </Link>
                     </VStack>
+                    <ThemeToggleButton />
                 </VStack>
             </Flex>
 
@@ -94,17 +111,19 @@ export function GardenLayout({ children }: PropsWithChildren) {
                 width="100%"
                 align="center"
                 borderBottom="1px solid"
-                borderBottomColor="gray.200"
-                bg="white"
+                borderBottomColor="border.subtle"
+                bg="bg.canvas"
                 px={4}
             >
-                <Menu>
+                <HStack spacing={2}>
+                    <Menu>
                     <MenuButton
                         as={IconButton}
                         aria-label="Options"
                         icon={<Icon as={FiMenu} boxSize={4} />}
                         variant="outline"
                         size="sm"
+                        borderColor="border.subtle"
                     />
                     <MenuList>
                         <MenuGroup title="NAVIGATION">
@@ -123,10 +142,15 @@ export function GardenLayout({ children }: PropsWithChildren) {
                                 <NavLink link="https://linkedin.com/in/ilir-gusija" isExternal>
                                     LinkedIn
                                 </NavLink>
+                                <NavLink link="mailto:ilir.gusija@queensu.ca" isExternal>
+                                    Email
+                                </NavLink>
                             </VStack>
                         </MenuGroup>
                     </MenuList>
-                </Menu>
+                    </Menu>
+                    <ThemeToggleButton size="sm" />
+                </HStack>
             </Flex>
 
             {/* Tablet nav bar */}
@@ -141,8 +165,8 @@ export function GardenLayout({ children }: PropsWithChildren) {
                 width="100%"
                 align="center"
                 borderBottom="1px solid"
-                borderBottomColor="gray.200"
-                bg="white"
+                borderBottomColor="border.subtle"
+                bg="bg.canvas"
                 px={4}
             >
                 <HStack spacing={8}>
@@ -150,6 +174,7 @@ export function GardenLayout({ children }: PropsWithChildren) {
                     <NavLink link="/research">Research</NavLink>
                     <NavLink link="/books">Bookshelf</NavLink>
                     <NavLink link="/garden">Garden</NavLink>
+                    <ThemeToggleButton size="sm" />
                 </HStack>
             </Flex>
 

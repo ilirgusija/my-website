@@ -4,12 +4,8 @@ import {
   Heading,
   Text,
   VStack,
-  HStack,
   Container,
   Divider,
-  Link,
-  Button,
-  Icon,
 } from "@chakra-ui/react";
 import Image from "next/image";
 import { GetStaticProps } from "next";
@@ -19,7 +15,6 @@ import { ResearchInterests } from "../components/ResearchInterests";
 import Layout from "../components/Layout";
 import { NextSeo } from "next-seo";
 import type { NextPageWithLayout } from "./_app";
-import { FiMail, FiGithub, FiLinkedin, FiFileText } from "react-icons/fi";
 
 interface HomePageProps {
   newsItems: NewsItem[];
@@ -90,54 +85,13 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
               <Heading size="2xl" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.name}
               </Heading>
-              <Text fontSize="xl" color="gray.600" textAlign={{ base: "center", md: "left" }}>
+              <Text fontSize="xl" color="text.muted" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.title}
               </Text>
-              <Text fontSize="md" color="gray.500" textAlign={{ base: "center", md: "left" }}>
+              <Text fontSize="md" color="text.muted" textAlign={{ base: "center", md: "left" }}>
                 {aboutMe.affiliation}
               </Text>
             </VStack>
-
-            <HStack spacing={4} flexWrap="wrap" justify={{ base: "center", md: "flex-start" }}>
-              <Button
-                as={Link}
-                href={`mailto:${aboutMe.email}`}
-                leftIcon={<Icon as={FiMail} />}
-                size="sm"
-                variant="outline"
-              >
-                Email
-              </Button>
-              <Button
-                as={Link}
-                href={`https://github.com/${aboutMe.github}`}
-                isExternal
-                leftIcon={<Icon as={FiGithub} />}
-                size="sm"
-                variant="outline"
-              >
-                GitHub
-              </Button>
-              <Button
-                as={Link}
-                href={`https://linkedin.com/in/${aboutMe.linkedin}`}
-                isExternal
-                leftIcon={<Icon as={FiLinkedin} />}
-                size="sm"
-                variant="outline"
-              >
-                LinkedIn
-              </Button>
-              <Button
-                as={Link}
-                href="/cv"
-                leftIcon={<Icon as={FiFileText} />}
-                size="sm"
-                variant="outline"
-              >
-                CV
-              </Button>
-            </HStack>
           </VStack>
         </Flex>
 
@@ -150,7 +104,7 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
           </Heading>
           <VStack align="stretch" spacing={4}>
             {aboutMe.bio.map((paragraph, index) => (
-              <Text key={index} fontSize="md" color="gray.700" lineHeight="tall">
+              <Text key={index} fontSize="md" color="text.primary" lineHeight="tall">
                 {paragraph}
               </Text>
             ))}
@@ -174,25 +128,6 @@ const HomePage: NextPageWithLayout<HomePageProps> = ({ newsItems }) => {
           <NewsTimeline items={newsItems} />
         </Box>
 
-        <Divider my={8} />
-
-        {/* Quick Links */}
-        <Box mb={12}>
-          <Heading size="lg" mb={6}>
-            Quick Links
-          </Heading>
-          <HStack spacing={4} flexWrap="wrap">
-            <Button as={Link} href="/research" colorScheme="blue" variant="outline">
-              Research
-            </Button>
-            <Button as={Link} href="/books" colorScheme="blue" variant="outline">
-              Bookshelf
-            </Button>
-            {/* <Button as={Link} href="/writing" colorScheme="blue" variant="outline">
-              Writing
-            </Button> */}
-          </HStack>
-        </Box>
       </Container>
     </>
   );

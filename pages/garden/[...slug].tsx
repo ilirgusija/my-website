@@ -1,14 +1,9 @@
 import {
   Box,
   Heading,
-  Flex,
   VStack,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
   Text,
   HStack,
-  Badge,
 } from '@chakra-ui/react';
 import { GetStaticPropsContext } from 'next';
 import Link from 'next/link';
@@ -26,6 +21,22 @@ import {
   getGardenManifest,
   GardenNoteData,
 } from '../../lib/garden/index';
+import { GardenIcon } from '../../components/garden/GardenIcon';
+
+interface PageIcon {
+  icon?: string;
+  iconSvg?: string;
+  iconEmoji?: string;
+}
+
+function toSerializablePageIcon(icon?: PageIcon | null): PageIcon | null {
+  if (!icon) return null;
+  const serializable: PageIcon = {};
+  if (icon.icon !== undefined) serializable.icon = icon.icon;
+  if (icon.iconSvg !== undefined) serializable.iconSvg = icon.iconSvg;
+  if (icon.iconEmoji !== undefined) serializable.iconEmoji = icon.iconEmoji;
+  return Object.keys(serializable).length > 0 ? serializable : null;
+}
 
 interface GardenNoteProps {
   note: GardenNoteData | null;
@@ -33,6 +44,7 @@ interface GardenNoteProps {
   isFolder: boolean;
   folderNotes?: { slug: string; title: string; noteType: string }[];
   breadcrumbs: { label: string; href: string }[];
+  pageIcon?: PageIcon | null;
 }
 
 const GardenNote: NextPageWithLayout<GardenNoteProps> = ({
@@ -41,6 +53,7 @@ const GardenNote: NextPageWithLayout<GardenNoteProps> = ({
   isFolder,
   folderNotes,
   breadcrumbs,
+  pageIcon,
 }) => {
   // Folder index page
   if (isFolder && folderNotes) {
@@ -49,10 +62,15 @@ const GardenNote: NextPageWithLayout<GardenNoteProps> = ({
       <>
         <NextSeo title={`${folderName} — Garden`} />
         <Box maxW="800px" px={{ base: 4, md: 6 }}>
-          <GardenBreadcrumbs breadcrumbs={breadcrumbs} />
-          <Heading size="lg" mb={6}>
-            {folderName}
-          </Heading>
+          <HStack spacing={3} align="center" mb={6}>
+            <GardenIcon
+              svg={pageIcon?.iconSvg}
+              emoji={pageIcon?.iconEmoji}
+              name={pageIcon?.icon}
+              size={20}
+            />
+            <Heading size="lg">{folderName}</Heading>
+          </HStack>
           <VStack align="flex-start" spacing={2}>
             {folderNotes.map(({ slug, title }) => (
               <Link key={slug} href={`/garden/${slug}`}>
@@ -89,10 +107,15 @@ const GardenNote: NextPageWithLayout<GardenNoteProps> = ({
       />
       <LinkPreviewProvider>
         <Box maxW="800px" px={{ base: 4, md: 6 }}>
-          <GardenBreadcrumbs breadcrumbs={breadcrumbs} />
-          <Heading size="lg" mb={4}>
-            {note.title}
-          </Heading>
+          <HStack spacing={3} align="center" mb={4}>
+            <GardenIcon
+              svg={pageIcon?.iconSvg}
+              emoji={pageIcon?.iconEmoji}
+              name={pageIcon?.icon}
+              size={20}
+            />
+            <Heading size="lg">{note.title}</Heading>
+          </HStack>
           <GardenNoteRenderer html={note.html} />
           <BacklinksSection backlinks={backlinks} />
         </Box>
@@ -100,36 +123,6 @@ const GardenNote: NextPageWithLayout<GardenNoteProps> = ({
     </>
   );
 };
-
-function GardenBreadcrumbs({
-  breadcrumbs,
-}: {
-  breadcrumbs: { label: string; href: string }[];
-}) {
-  return (
-    <Breadcrumb mb={4} fontSize="sm" color="gray.500" separator="/">
-      <BreadcrumbItem>
-        <BreadcrumbLink as={Link} href="/garden">
-          Garden
-        </BreadcrumbLink>
-      </BreadcrumbItem>
-      {breadcrumbs.map((crumb, i) => (
-        <BreadcrumbItem
-          key={crumb.href}
-          isCurrentPage={i === breadcrumbs.length - 1}
-        >
-          {i === breadcrumbs.length - 1 ? (
-            <BreadcrumbLink as="span">{crumb.label}</BreadcrumbLink>
-          ) : (
-            <BreadcrumbLink as={Link} href={crumb.href}>
-              {crumb.label}
-            </BreadcrumbLink>
-          )}
-        </BreadcrumbItem>
-      ))}
-    </Breadcrumb>
-  );
-}
 
 export default GardenNote;
 
@@ -174,23 +167,34 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
     href: `/garden/${slugParts.slice(0, i + 1).join('/')}`,
   }));
 
+  const manifest = await getGardenManifest();
+
   // Try to load as a note first
   const note = await getGardenNote(slug);
   if (note) {
     const backlinks = await getBacklinksForNote(slug);
+    const noteIconEntry = manifest?.entries.find((e) => e.slug === slug);
     return {
       props: {
         note,
         backlinks,
         isFolder: false,
         breadcrumbs,
+        pageIcon: toSerializablePageIcon(
+          noteIconEntry
+            ? {
+                icon: noteIconEntry.icon,
+                iconSvg: noteIconEntry.iconSvg,
+                iconEmoji: noteIconEntry.iconEmoji,
+              }
+            : null
+        ),
       },
       revalidate: 3600,
     };
   }
 
   // Try to load as a folder index
-  const manifest = await getGardenManifest();
   if (manifest) {
     const folderNotes = manifest.entries
       .filter(
@@ -212,6 +216,7 @@ export async function getStaticProps({ params }: GetStaticPropsContext) {
           isFolder: true,
           folderNotes,
           breadcrumbs,
+          pageIcon: toSerializablePageIcon(manifest.folderIcons?.[slug] || null),
         },
         revalidate: 3600,
       };

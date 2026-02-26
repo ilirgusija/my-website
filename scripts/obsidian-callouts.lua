@@ -43,6 +43,48 @@ local callout_labels = {
   solution = "Solution",
 }
 
+local function markdown_to_inlines(text)
+  if not text or text == "" then return {} end
+  local ok, parsed = pcall(pandoc.read, text, "markdown")
+  if not ok or not parsed or #parsed.blocks == 0 then
+    return { pandoc.Str(text) }
+  end
+  local first = parsed.blocks[1]
+  if first.t == "Para" or first.t == "Plain" then
+    return first.content
+  end
+  return { pandoc.Str(text) }
+end
+
+local function inlines_to_markdown(inlines)
+  local parts = {}
+  for _, inl in ipairs(inlines) do
+    if inl.t == "Str" then
+      table.insert(parts, inl.text)
+    elseif inl.t == "Space" or inl.t == "SoftBreak" then
+      table.insert(parts, " ")
+    elseif inl.t == "Math" then
+      table.insert(parts, "$" .. inl.text .. "$")
+    elseif inl.t == "Code" then
+      table.insert(parts, "`" .. inl.text .. "`")
+    elseif inl.t == "Emph" then
+      table.insert(parts, "*" .. inlines_to_markdown(inl.content) .. "*")
+    elseif inl.t == "Strong" then
+      table.insert(parts, "**" .. inlines_to_markdown(inl.content) .. "**")
+    elseif inl.t == "Link" then
+      local label = inlines_to_markdown(inl.content)
+      local target = inl.target or ""
+      table.insert(parts, "[" .. label .. "](" .. target .. ")")
+    else
+      local txt = pandoc.utils.stringify(inl)
+      if txt and txt ~= "" then
+        table.insert(parts, txt)
+      end
+    end
+  end
+  return table.concat(parts)
+end
+
 -- Extract plain text from inlines (for title attribute)
 local function inlines_to_text(inlines)
   local parts = {}
@@ -75,30 +117,60 @@ function BlockQuote(el)
   local first = inlines[1]
   if first.t ~= "Str" then return nil end
 
-  local raw_type, pipe_label
-  -- Match [!type] or [!type|label]
+  local raw_type
+  local marker_end_idx = 1
+  local pipe_title_inlines = {}
+  local has_pipe_label = false
+
+  -- Match [!type]
   raw_type = first.text:match("^%[!(%w+)%]$")
+
+  -- Match [!type|...]
   if not raw_type then
     raw_type = first.text:match("^%[!(%w+)|")
     if raw_type then
-      pipe_label = first.text:match("|(.+)%]$")
-      if not pipe_label then
-        -- Label may continue in subsequent inlines
-        local label_parts = { first.text:match("|(.*)$") or "" }
+      has_pipe_label = true
+      local remainder = first.text:match("^%[!%w+|(.*)$") or ""
+      local marker_closed = false
+
+      -- Keep inline formatting in pipe labels (including links/math),
+      -- instead of flattening to plain text.
+      if remainder ~= "" then
+        local before_close = remainder:match("^(.-)%]$")
+        if before_close then
+          if before_close ~= "" then
+            table.insert(pipe_title_inlines, pandoc.Str(before_close))
+          end
+          marker_closed = true
+          marker_end_idx = 1
+        else
+          table.insert(pipe_title_inlines, pandoc.Str(remainder))
+        end
+      end
+
+      if not marker_closed then
         for i = 2, #inlines do
-          if inlines[i].t == "Str" then
-            local before_close = inlines[i].text:match("^(.-)%]")
+          local inl = inlines[i]
+          if inl.t == "Str" then
+            local before_close = inl.text:match("^(.-)%]$")
             if before_close then
-              table.insert(label_parts, before_close)
+              if before_close ~= "" then
+                table.insert(pipe_title_inlines, pandoc.Str(before_close))
+              end
+              marker_closed = true
+              marker_end_idx = i
               break
             else
-              table.insert(label_parts, inlines[i].text)
+              table.insert(pipe_title_inlines, inl)
             end
-          elseif inlines[i].t == "Space" then
-            table.insert(label_parts, " ")
+          else
+            table.insert(pipe_title_inlines, inl)
           end
         end
-        pipe_label = table.concat(label_parts)
+      end
+
+      if not marker_closed then
+        return nil -- malformed marker
       end
     else
       return nil  -- Not a callout
@@ -114,22 +186,9 @@ function BlockQuote(el)
   local title_inlines = {}
   local body_inlines = {}
   local found_softbreak = false
-  local past_marker = false
-
-  for i, inl in ipairs(inlines) do
-    if i == 1 then
-      -- Skip the [!type] marker itself
-      past_marker = true
-    elseif not past_marker then
-      -- Still in marker area (for multi-part markers like [!type|label])
-      if inl.t == "Str" and inl.text:match("%]") then
-        past_marker = true
-        local after = inl.text:match("%](.+)")
-        if after then
-          table.insert(title_inlines, pandoc.Str(after))
-        end
-      end
-    elseif not found_softbreak then
+  for i = marker_end_idx + 1, #inlines do
+    local inl = inlines[i]
+    if not found_softbreak then
       if inl.t == "SoftBreak" then
         found_softbreak = true
       else
@@ -147,17 +206,32 @@ function BlockQuote(el)
   while #title_inlines > 0 and title_inlines[#title_inlines].t == "Space" do
     table.remove(title_inlines, #title_inlines)
   end
+  while #pipe_title_inlines > 0 and pipe_title_inlines[1].t == "Space" do
+    table.remove(pipe_title_inlines, 1)
+  end
+  while #pipe_title_inlines > 0 and pipe_title_inlines[#pipe_title_inlines].t == "Space" do
+    table.remove(pipe_title_inlines, #pipe_title_inlines)
+  end
 
   local title_text = inlines_to_text(title_inlines)
 
-  -- Build display title
-  local display_title
-  if pipe_label and pipe_label ~= "" then
-    display_title = label .. " (" .. pipe_label .. ")"
-  elseif title_text ~= "" then
-    display_title = label .. " (" .. title_text .. ")"
-  else
-    display_title = label
+  -- Build display title as real inlines so math / links render correctly.
+  local title_display_inlines = { pandoc.Str(label) }
+  local explicit_title_inlines = {}
+  if has_pipe_label and #pipe_title_inlines > 0 then
+    -- Pipe label text lives inside the callout marker and often arrives as raw
+    -- inlines; re-parse as markdown so links/math render in the final title.
+    explicit_title_inlines = markdown_to_inlines(inlines_to_markdown(pipe_title_inlines))
+  elseif #title_inlines > 0 then
+    explicit_title_inlines = title_inlines
+  end
+  if #explicit_title_inlines > 0 then
+    table.insert(title_display_inlines, pandoc.Space())
+    table.insert(title_display_inlines, pandoc.Str("("))
+    for _, inl in ipairs(explicit_title_inlines) do
+      table.insert(title_display_inlines, inl)
+    end
+    table.insert(title_display_inlines, pandoc.Str(")"))
   end
 
   -- Build body blocks
@@ -168,25 +242,20 @@ function BlockQuote(el)
   if #body_inlines > 0 then
     table.insert(body_blocks, pandoc.Para(body_inlines))
   elseif not found_softbreak and #title_inlines == 0 then
-    -- No SoftBreak and no title: entire first para was just [!type]
-    -- Body is in subsequent blocks only
-  elseif not found_softbreak then
-    -- No SoftBreak: everything after marker is the body (single-line callout)
-    -- title_inlines actually IS the body content
-    table.insert(body_blocks, pandoc.Para(title_inlines))
-    title_text = ""
-    -- Recalculate display title
-    if pipe_label and pipe_label ~= "" then
-      display_title = label .. " (" .. pipe_label .. ")"
-    else
-      display_title = label
-    end
+    -- No SoftBreak and no title: entire first para was just [!type].
+    -- Body is in subsequent blocks only.
   end
 
   -- Add remaining blocks from the blockquote
   for i = 2, #el.content do
     table.insert(body_blocks, el.content[i])
   end
+
+  -- Always prepend an explicit title line block. This allows full markdown/LaTeX
+  -- rendering in titles instead of relying on CSS pseudo-content text.
+  table.insert(body_blocks, 1, pandoc.Para({
+    pandoc.Span(title_display_inlines, pandoc.Attr("", {"callout-title"}))
+  }))
 
   -- Extract block reference ID (^hexid) from body for callout anchoring
   local block_ref_id = nil
@@ -216,6 +285,6 @@ function BlockQuote(el)
   local attr_id = block_ref_id or ""
   return pandoc.Div(body_blocks, pandoc.Attr(attr_id, {"callout", "callout-" .. callout_type}, {
     ["data-callout-type"] = callout_type,
-    ["data-callout-title"] = display_title
+    ["data-callout-title"] = inlines_to_text(title_display_inlines)
   }))
 end
