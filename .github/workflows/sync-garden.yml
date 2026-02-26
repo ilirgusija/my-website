@@ -14,8 +14,6 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [sync-garden]
-  schedule:
-    - cron: '0 6 * * *' # 6am UTC daily
 
 jobs:
   sync-garden:
