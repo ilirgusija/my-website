@@ -41,6 +41,33 @@ export function hasSupabaseConfig(): boolean {
   return readSupabaseConfig() !== null;
 }
 
+function shouldLogSupabaseMetrics(): boolean {
+  return process.env.SUPABASE_METRICS === '1';
+}
+
+function estimatePayloadBytes(value: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), 'utf8');
+  } catch {
+    return 0;
+  }
+}
+
+function logSupabaseMetric(label: string, details: {
+  rows?: number;
+  bytes?: number;
+  elapsedMs?: number;
+}) {
+  if (!shouldLogSupabaseMetrics()) return;
+  const parts = [
+    `label=${label}`,
+    details.rows !== undefined ? `rows=${details.rows}` : null,
+    details.bytes !== undefined ? `kb=${(details.bytes / 1024).toFixed(1)}` : null,
+    details.elapsedMs !== undefined ? `ms=${details.elapsedMs}` : null,
+  ].filter(Boolean);
+  console.log(`[supabase-metrics] ${parts.join(' ')}`);
+}
+
 async function withRetry<T = any>(
   operation: () => PromiseLike<T> | T,
   attempts = 3,
@@ -91,6 +118,21 @@ function rowToNote(row: GardenNoteRow): GardenNoteData {
   };
 }
 
+function rowToNotePreview(row: Omit<GardenNoteRow, 'markdown'>): Omit<GardenNoteData, 'markdown'> {
+  return {
+    slug: row.slug,
+    title: row.title,
+    html: row.html,
+    tags: row.tags || [],
+    folder: row.folder,
+    noteType: row.note_type as 'concept' | 'theorem' | 'other',
+    aliases: row.aliases || [],
+    outlinks: row.outlinks || [],
+    status: (row.status as 'seedling' | 'budding' | 'evergreen') || 'seedling',
+    lastModified: row.last_modified,
+  };
+}
+
 function noteToRow(note: GardenNoteData): Omit<GardenNoteRow, 'last_modified'> & { last_modified?: string } {
   return {
     slug: note.slug,
@@ -110,49 +152,129 @@ function noteToRow(note: GardenNoteData): Omit<GardenNoteRow, 'last_modified'> &
 export async function fetchGardenManifest(): Promise<GardenManifest | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
+  const started = Date.now();
   const { data, error } = await supabase
     .from('garden_meta')
     .select('data')
     .eq('key', 'manifest')
     .single();
   if (error || !data?.data) return null;
+  logSupabaseMetric('fetchGardenManifest', {
+    rows: 1,
+    bytes: estimatePayloadBytes(data?.data),
+    elapsedMs: Date.now() - started,
+  });
   return data.data as GardenManifest;
 }
 
 export async function fetchGardenGraph(): Promise<Graph | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
+  const started = Date.now();
   const { data, error } = await supabase
     .from('garden_meta')
     .select('data')
     .eq('key', 'graph')
     .single();
   if (error || !data?.data) return null;
+  logSupabaseMetric('fetchGardenGraph', {
+    rows: 1,
+    bytes: estimatePayloadBytes(data?.data),
+    elapsedMs: Date.now() - started,
+  });
   return data.data as Graph;
 }
 
 export async function fetchGardenNote(slug: string): Promise<GardenNoteData | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
+  const started = Date.now();
   const { data, error } = await supabase
     .from('garden_notes')
-    .select('*')
+    .select('slug,title,html,markdown,tags,folder,note_type,aliases,outlinks,status,last_modified')
     .eq('slug', slug)
     .single();
   if (error || !data) return null;
+  logSupabaseMetric('fetchGardenNote', {
+    rows: 1,
+    bytes: estimatePayloadBytes(data),
+    elapsedMs: Date.now() - started,
+  });
   return rowToNote(data as GardenNoteRow);
 }
 
-/** Fetch all notes (for incremental sync - load unchanged from DB) */
-export async function fetchAllGardenNotes(): Promise<Map<string, GardenNoteData>> {
+export async function fetchGardenNotePreview(slug: string): Promise<Omit<GardenNoteData, 'markdown'> | null> {
   const supabase = getSupabaseClient();
-  const map = new Map<string, GardenNoteData>();
+  if (!supabase) return null;
+  const started = Date.now();
+  const { data, error } = await supabase
+    .from('garden_notes')
+    .select('slug,title,html,tags,folder,note_type,aliases,outlinks,status,last_modified')
+    .eq('slug', slug)
+    .single();
+  if (error || !data) return null;
+  logSupabaseMetric('fetchGardenNotePreview', {
+    rows: 1,
+    bytes: estimatePayloadBytes(data),
+    elapsedMs: Date.now() - started,
+  });
+  return rowToNotePreview(data as Omit<GardenNoteRow, 'markdown'>);
+}
+
+export interface GardenNoteGraphSnapshot {
+  slug: string;
+  title: string;
+  outlinks: string[];
+  tags: string[];
+}
+
+/** Fetch minimal fields needed to rebuild graph in incremental sync */
+export async function fetchGardenNoteGraphSnapshots(): Promise<Map<string, GardenNoteGraphSnapshot>> {
+  const supabase = getSupabaseClient();
+  const map = new Map<string, GardenNoteGraphSnapshot>();
   if (!supabase) return map;
-  const { data, error } = await supabase.from('garden_notes').select('*');
-  if (error || !data) return map;
-  for (const row of data as GardenNoteRow[]) {
-    map.set(row.slug, rowToNote(row));
+
+  const pageSize = 1000;
+  let from = 0;
+  let totalRows = 0;
+  let totalBytes = 0;
+  const started = Date.now();
+
+  while (true) {
+    const pageStarted = Date.now();
+    const { data, error } = await supabase
+      .from('garden_notes')
+      .select('slug,title,outlinks,tags')
+      .order('slug', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    totalRows += data.length;
+    totalBytes += estimatePayloadBytes(data);
+    logSupabaseMetric('fetchGardenNoteGraphSnapshots.page', {
+      rows: data.length,
+      bytes: estimatePayloadBytes(data),
+      elapsedMs: Date.now() - pageStarted,
+    });
+
+    for (const row of data as Array<Pick<GardenNoteRow, 'slug' | 'title' | 'outlinks' | 'tags'>>) {
+      map.set(row.slug, {
+        slug: row.slug,
+        title: row.title,
+        outlinks: row.outlinks || [],
+        tags: row.tags || [],
+      });
+    }
+
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
+
+  logSupabaseMetric('fetchGardenNoteGraphSnapshots.total', {
+    rows: totalRows,
+    bytes: totalBytes,
+    elapsedMs: Date.now() - started,
+  });
+
   return map;
 }
 
@@ -165,12 +287,17 @@ export async function syncGardenToSupabase(
 ): Promise<void> {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Supabase not configured');
+  const started = Date.now();
+  let upsertRows = 0;
+  let upsertBytes = 0;
 
   // Upsert notes in conservative batches. Large HTML payloads can exceed
   // PostgREST request limits, so keep batches small and degrade gracefully.
   const BATCH_SIZE = 20;
   for (let i = 0; i < notes.length; i += BATCH_SIZE) {
     const batch = notes.slice(i, i + BATCH_SIZE).map((n) => noteToRow(n));
+    upsertRows += batch.length;
+    upsertBytes += estimatePayloadBytes(batch);
     try {
       const { error } = await withRetry(
         () =>
@@ -231,6 +358,11 @@ export async function syncGardenToSupabase(
     'meta upsert'
   );
   if (metaError) throw new Error(`Failed to upsert meta: ${metaError.message}`);
+  logSupabaseMetric('syncGardenToSupabase', {
+    rows: upsertRows + slugsToDelete.length + 2,
+    bytes: upsertBytes + estimatePayloadBytes(manifest) + estimatePayloadBytes(graph),
+    elapsedMs: Date.now() - started,
+  });
 }
 
 /** Sync state for incremental runs (stores last vault commit) */

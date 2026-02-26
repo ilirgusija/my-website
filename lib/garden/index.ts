@@ -14,6 +14,7 @@ import {
   fetchGardenManifest as supabaseFetchManifest,
   fetchGardenGraph as supabaseFetchGraph,
   fetchGardenNote as supabaseFetchNote,
+  fetchGardenNotePreview as supabaseFetchNotePreview,
 } from '../supabase-garden';
 
 // Types for the processed note data
@@ -48,14 +49,27 @@ const LOCAL_GARDEN_DIR = path.join(process.cwd(), 'content/garden');
 // In-memory cache for build
 let manifestCache: GardenManifest | null = null;
 let graphCache: Graph | null = null;
+let supabaseManifestCache: { data: GardenManifest; fetchedAt: number } | null = null;
+let supabaseGraphCache: { data: Graph; fetchedAt: number } | null = null;
+
+const SUPABASE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Get the garden manifest (list of all notes with metadata).
  */
 export async function getGardenManifest(): Promise<GardenManifest | null> {
   if (hasSupabaseConfig()) {
+    if (
+      supabaseManifestCache &&
+      Date.now() - supabaseManifestCache.fetchedAt < SUPABASE_CACHE_TTL_MS
+    ) {
+      return supabaseManifestCache.data;
+    }
     const data = await supabaseFetchManifest();
-    if (data) return data;
+    if (data) {
+      supabaseManifestCache = { data, fetchedAt: Date.now() };
+      return data;
+    }
   }
   return getLocalManifest();
 }
@@ -65,8 +79,17 @@ export async function getGardenManifest(): Promise<GardenManifest | null> {
  */
 export async function getGardenGraph(): Promise<Graph | null> {
   if (hasSupabaseConfig()) {
+    if (
+      supabaseGraphCache &&
+      Date.now() - supabaseGraphCache.fetchedAt < SUPABASE_CACHE_TTL_MS
+    ) {
+      return supabaseGraphCache.data;
+    }
     const data = await supabaseFetchGraph();
-    if (data) return data;
+    if (data) {
+      supabaseGraphCache = { data, fetchedAt: Date.now() };
+      return data;
+    }
   }
   return getLocalGraph();
 }
@@ -80,6 +103,19 @@ export async function getGardenNote(slug: string): Promise<GardenNoteData | null
     if (data) return data;
   }
   return getLocalNote(slug);
+}
+
+export async function getGardenNotePreview(
+  slug: string
+): Promise<Omit<GardenNoteData, 'markdown'> | null> {
+  if (hasSupabaseConfig()) {
+    const data = await supabaseFetchNotePreview(slug);
+    if (data) return data;
+  }
+  const local = getLocalNote(slug);
+  if (!local) return null;
+  const { markdown, ...noteWithoutMarkdown } = local;
+  return noteWithoutMarkdown;
 }
 
 /**
