@@ -6,7 +6,6 @@
 # Triggers:
 #   - Manual (workflow_dispatch)
 #   - When vault repo pushes (repository_dispatch from vault's webhook workflow)
-#   - Daily cron (backup in case webhook misses)
 
 name: Sync Garden from Vault
 
