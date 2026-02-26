@@ -10,7 +10,7 @@ export function ResearchList({ research }: ResearchListProps) {
   if (research.length === 0) {
     return (
       <Box>
-        <Text color="gray.500" fontStyle="italic">
+        <Text color="text.muted" fontStyle="italic">
           No research projects available yet. Check back soon!
         </Text>
       </Box>

@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { head, list } from "@vercel/blob";
 import dotenv from "dotenv";
+import { getSupabaseClient, hasSupabaseConfig } from "./supabase-garden";
 dotenv.config({ path: ".env.development.local" });
+dotenv.config({ path: ".env.local" });
 
 const researchDirectory = path.join(process.cwd(), "content/research");
 
@@ -22,6 +23,32 @@ export interface Research {
 // Dev fallback data for local development
 export const devResearch: Research[] = [];
 
+interface ResearchRow {
+  slug: string;
+  title: string;
+  authors: string[];
+  abstract: string;
+  status: "in-progress" | "submitted" | "published";
+  arxiv_id: string | null;
+  pdf_path: string | null;
+  pdf_url: string | null;
+  last_updated: string | null;
+}
+
+function rowToResearch(row: ResearchRow): Research {
+  return {
+    slug: row.slug,
+    title: row.title,
+    authors: row.authors || [],
+    abstract: row.abstract || "",
+    status: row.status || "in-progress",
+    arxivId: row.arxiv_id || undefined,
+    pdfPath: row.pdf_path || "",
+    pdfUrl: row.pdf_url || undefined,
+    lastUpdated: row.last_updated || undefined,
+  };
+}
+
 export function getResearchSlugs(): string[] {
   if (!fs.existsSync(researchDirectory)) {
     return [];
@@ -33,70 +60,23 @@ export function getResearchSlugs(): string[] {
 }
 
 export async function getAllResearch(): Promise<Research[]> {
-  // Try to fetch from Vercel Blob first (production)
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  // Try Supabase first
+  if (hasSupabaseConfig()) {
     try {
-      const { blobs } = await list({
-        prefix: "research/metadata/",
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-
-      if (blobs.length > 0) {
-        const research = await Promise.all(
-          blobs
-            .filter((blob) => blob.pathname.endsWith(".md"))
-            .filter((blob) => {
-              // Filter out example research items
-              const slug = blob.pathname
-                .replace("research/metadata/", "")
-                .replace(/\.md$/, "");
-              return !slug.toLowerCase().includes("example");
-            })
-            .map(async (blob) => {
-              const response = await fetch(blob.downloadUrl);
-              const fileContents = await response.text();
-              const { data } = matter(fileContents);
-              const slug = blob.pathname
-                .replace("research/metadata/", "")
-                .replace(/\.md$/, "");
-
-              // Additional filter: exclude if title contains "example"
-              const title = (data as any).title || "";
-              if (title.toLowerCase().includes("example")) {
-                return null;
-              }
-
-              const item: Research = {
-                ...(data as Omit<Research, "slug" | "pdfUrl">),
-                slug,
-              } as Research;
-
-              // Get PDF URL from blob
-              if (item.pdfPath) {
-                try {
-                  const pdfBlobPath = `research/${item.pdfPath}`;
-                  const pdfMetadata = await head(pdfBlobPath, {
-                    token: process.env.BLOB_READ_WRITE_TOKEN,
-                  });
-                  item.pdfUrl = pdfMetadata.downloadUrl;
-                } catch (error: any) {
-                  // PDF might not be uploaded yet
-                  if (!error?.message?.includes("does not exist")) {
-                    console.warn(`Error fetching PDF for ${slug}:`, error.message);
-                  }
-                }
-              }
-
-              return item;
-            })
-        );
-
-        // Filter out null items (excluded examples)
-        return research.filter((item): item is Research => item !== null);
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("research_items")
+          .select("*");
+        if (!error && data) {
+          return (data as ResearchRow[])
+            .map(rowToResearch)
+            .filter((r) => !r.slug.toLowerCase().includes("example"))
+            .filter((r) => !r.title.toLowerCase().includes("example"));
+        }
       }
     } catch (error: any) {
-      console.warn("Failed to fetch research metadata from blob:", error.message);
-      // Fall through to local file system fallback
+      console.warn("Failed to fetch research from Supabase:", error.message);
     }
   }
 
@@ -126,30 +106,16 @@ export async function getAllResearch(): Promise<Research[]> {
       const item: Research = {
         ...(data as Omit<Research, "slug" | "pdfUrl">),
         slug,
+        authors: (data as any).authors ?? [],
       } as Research;
 
-      // Try to get PDF URL - check local file first in development, then Vercel Blob
+      // Try to get PDF URL from local file in development fallback
       if (item.pdfPath) {
         // In development, check if PDF exists locally
         if (process.env.NODE_ENV === "development") {
           const localPdfPath = path.join(researchDirectory, item.pdfPath);
           if (fs.existsSync(localPdfPath)) {
             item.pdfUrl = `/research/${item.pdfPath}`;
-          }
-        }
-
-        // If not found locally (or in production), try Vercel Blob
-        if (!item.pdfUrl && process.env.BLOB_READ_WRITE_TOKEN) {
-          try {
-            const blobPath = `research/${item.pdfPath}`;
-            const pdfMetadata = await head(blobPath, {
-              token: process.env.BLOB_READ_WRITE_TOKEN,
-            });
-            item.pdfUrl = pdfMetadata.downloadUrl;
-          } catch (error: any) {
-            if (!error?.message?.includes("does not exist")) {
-              console.warn(`Error fetching PDF for ${slug}:`, error.message);
-            }
           }
         }
       }
@@ -168,50 +134,29 @@ export async function getResearch(slug: string): Promise<Research | null> {
     return null;
   }
 
-  // Try to fetch from Vercel Blob first (production)
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  // Try Supabase first
+  if (hasSupabaseConfig()) {
     try {
-      const blobPath = `research/metadata/${slug}.md`;
-      const metadata = await head(blobPath, {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-
-      const response = await fetch(metadata.downloadUrl);
-      const fileContents = await response.text();
-      const { data } = matter(fileContents);
-
-      // Additional filter: exclude if title contains "example"
-      const title = (data as any).title || "";
-      if (title.toLowerCase().includes("example")) {
-        return null;
-      }
-
-      const item: Research = {
-        ...(data as Omit<Research, "slug" | "pdfUrl">),
-        slug,
-      } as Research;
-
-      // Get PDF URL
-      if (item.pdfPath) {
-        try {
-          const pdfBlobPath = `research/${item.pdfPath}`;
-          const pdfMetadata = await head(pdfBlobPath, {
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-          });
-          item.pdfUrl = pdfMetadata.downloadUrl;
-        } catch (error: any) {
-          if (!error?.message?.includes("does not exist")) {
-            console.warn(`Error fetching PDF for ${slug}:`, error.message);
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("research_items")
+          .select("*")
+          .eq("slug", slug)
+          .single();
+        if (!error && data) {
+          const item = rowToResearch(data as ResearchRow);
+          if (
+            item.slug.toLowerCase().includes("example") ||
+            item.title.toLowerCase().includes("example")
+          ) {
+            return null;
           }
+          return item;
         }
       }
-
-      return item;
     } catch (error: any) {
-      if (!error?.message?.includes("does not exist")) {
-        console.warn(`Failed to fetch research ${slug} from blob:`, error.message);
-      }
-      // Fall through to local file system fallback
+      console.warn(`Failed to fetch research ${slug} from Supabase:`, error.message);
     }
   }
 
@@ -233,6 +178,7 @@ export async function getResearch(slug: string): Promise<Research | null> {
   const item: Research = {
     ...(data as Omit<Research, "slug" | "pdfUrl">),
     slug,
+    authors: (data as any).authors ?? [],
   } as Research;
 
   // Get PDF URL
@@ -244,24 +190,12 @@ export async function getResearch(slug: string): Promise<Research | null> {
       }
     }
 
-    if (!item.pdfUrl && process.env.BLOB_READ_WRITE_TOKEN) {
-      try {
-        const pdfBlobPath = `research/${item.pdfPath}`;
-        const pdfMetadata = await head(pdfBlobPath, {
-          token: process.env.BLOB_READ_WRITE_TOKEN,
-        });
-        item.pdfUrl = pdfMetadata.downloadUrl;
-      } catch (error: any) {
-        if (!error?.message?.includes("does not exist")) {
-          console.warn(`Error fetching PDF for ${slug}:`, error.message);
-        }
-      }
-    }
   }
 
   return item;
 }
 
-export function getAllResearchSlugs(): string[] {
-  return getResearchSlugs();
+export async function getAllResearchSlugs(): Promise<string[]> {
+  const research = await getAllResearch();
+  return research.map((item) => item.slug);
 }

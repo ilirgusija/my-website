@@ -30,6 +30,15 @@ yarn-error.log*
 
 # vercel
 .vercel
+.claude/
+
+# garden – compiled output in Supabase; no content in repo
+content/garden/
+.garden-sync-state
+public/garden-images/
+
+# supabase CLI temp files
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo

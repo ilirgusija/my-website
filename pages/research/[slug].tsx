@@ -75,7 +75,7 @@ const ResearchPage: NextPageWithLayout<ResearchPageProps> = ({ research }) => {
             </HStack>
 
             <Text fontSize="lg" color="gray.600" fontStyle="italic">
-              {research.authors.join(", ")}
+              {(research.authors ?? []).join(", ")}
             </Text>
 
             {research.lastUpdated && (
@@ -132,7 +132,7 @@ ResearchPage.getLayout = (page) => <Layout>{page}</Layout>;
 export default ResearchPage;
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const slugs = getAllResearchSlugs();
+  const slugs = await getAllResearchSlugs();
   const paths = slugs.map((slug) => ({
     params: { slug },
   }));

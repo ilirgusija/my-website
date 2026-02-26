@@ -22,7 +22,7 @@ const ResearchPage: NextPageWithLayout<ResearchPageProps> = ({ research }) => {
           <Heading size="xl" mb={2}>
             Research
           </Heading>
-          <Text color="gray.600" mb={6}>
+          <Text color="text.muted" mb={6}>
             Ongoing research projects and publications. Work marked as "in progress" is actively being developed and may change.
           </Text>
           <ResearchList research={research} />

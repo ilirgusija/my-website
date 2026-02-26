@@ -36,7 +36,8 @@ function getTypeLabel(type: NewsItem["type"]): string {
   }
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | undefined): string {
+  if (!dateString) return "";
   // Parse date as local date (not UTC) to avoid timezone issues
   // If dateString is "YYYY-MM-DD", parse it as local date
   const [year, month, day] = dateString.split("-").map(Number);
@@ -52,7 +53,7 @@ export function NewsTimeline({ items }: NewsTimelineProps) {
   if (items.length === 0) {
     return (
       <Box>
-        <Text color="gray.500" fontStyle="italic">
+        <Text color="text.muted" fontStyle="italic">
           No news items yet. Check back soon!
         </Text>
       </Box>
@@ -75,7 +76,7 @@ export function NewsTimeline({ items }: NewsTimelineProps) {
                 top="24px"
                 bottom="-24px"
                 width="2px"
-                bg="gray.200"
+                bg="border.subtle"
               />
             )}
 
@@ -87,29 +88,31 @@ export function NewsTimeline({ items }: NewsTimelineProps) {
               w={6}
               h={6}
               borderRadius="full"
-              bg="blue.100"
+              bg="bg.surface"
               display="flex"
               alignItems="center"
               justifyContent="center"
               zIndex={1}
             >
-              <Icon as={IconComponent} color="blue.600" boxSize={4} />
+              <Icon as={IconComponent} color="accent.link" boxSize={4} />
             </Box>
 
             {/* Content */}
             <VStack align="stretch" spacing={1}>
               <HStack spacing={2} flexWrap="wrap">
-                <Text fontSize="sm" color="gray.500" fontWeight="medium">
-                  {formatDate(item.date)}
-                </Text>
-                <Text fontSize="sm" color="blue.600" fontWeight="medium">
+                {item.date && (
+                  <Text fontSize="sm" color="text.muted" fontWeight="medium">
+                    {formatDate(item.date)}
+                  </Text>
+                )}
+                <Text fontSize="sm" color="accent.link" fontWeight="medium">
                   {getTypeLabel(item.type)}
                 </Text>
               </HStack>
 
               <Text fontSize="lg" fontWeight="semibold">
                 {item.link ? (
-                  <Link href={item.link} isExternal color="blue.600" _hover={{ textDecoration: "underline" }}>
+                  <Link href={item.link} isExternal color="accent.link" _hover={{ textDecoration: "underline", color: "accent.linkHover" }}>
                     {item.title}
                     <Icon as={FiExternalLink} ml={1} boxSize={3} display="inline" />
                   </Link>
@@ -119,13 +122,13 @@ export function NewsTimeline({ items }: NewsTimelineProps) {
               </Text>
 
               {item.venue && (
-                <Text fontSize="sm" color="gray.600" fontStyle="italic">
+                <Text fontSize="sm" color="text.muted" fontStyle="italic">
                   {item.venue}
                 </Text>
               )}
 
               {item.description && (
-                <Text fontSize="md" color="gray.700" mt={1}>
+                <Text fontSize="md" color="text.primary" mt={1}>
                   {item.description}
                 </Text>
               )}

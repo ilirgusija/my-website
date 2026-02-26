@@ -1,26 +1,16 @@
-import path from "path";
-import { parse } from "csv-parse/sync";
-import fetch from "node-fetch"; // Node.js fetch API
-import tinycolor from "tinycolor2";
-import dotenv from "dotenv";
-dotenv.config({ path: ".env.development.local" });
-import { put, head } from '@vercel/blob';
-// node-vibrant entrypoint for Node.js
-import { Vibrant } from "node-vibrant/node";
-import { uploadVersionedData, fetchVersionedData } from '../lib/data-versioning';
+import fs from 'fs';
+import path from 'path';
+import { parse } from 'csv-parse/sync';
+import dotenv from 'dotenv';
+import tinycolor from 'tinycolor2';
+import sharp from 'sharp';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseClient, hasSupabaseConfig } from '../lib/supabase-garden';
 
+dotenv.config({ path: '.env.development.local' });
+dotenv.config({ path: '.env.local' });
 
-interface GoogleBooksResponse {
-    items?: {
-        volumeInfo?: {
-            imageLinks?: {
-                thumbnail?: string;
-            };
-        };
-    }[];
-}
-
-interface ProcessedBook {
+export interface ProcessedBook {
     ISBN: string;
     title: string;
     author: string;
@@ -33,342 +23,340 @@ interface ProcessedBook {
     summary: string;
 }
 
-async function fetchCSVFromBlob(): Promise<string> {
-    try {
-        const headResult = await head(path.join("csv_data","reading_data.csv"));
-        const csvUrl = headResult.downloadUrl;
-        const response = await fetch(csvUrl);
-    
-        if (!response.ok) {
-          throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
-        const csvData = await response.text();
-        return csvData;
-    }
-    catch(error) {
-        throw new Error("reading_data.csv not found");
-    }
+interface LibraryBookRow {
+    isbn: string;
+    title: string;
+    author: string;
+    finished_date: string;
+    rating: number;
+    cover_image: string;
+    spine_color: string;
+    text_color: string;
+    slug: string;
+    summary: string;
 }
 
-export async function uploadJSONToBlob(data: object) {
-    console.log('Uploading versioned JSON data...');
-    try {
-        const version = await uploadVersionedData(data, 'json_data/index.json');
-        console.log('JSON uploaded successfully with version:', version.version);
-        console.log('JSON path: json_data/index.json');
-        console.log('JSON record count:', version.recordCount);
-        return version;
-    } catch (error) {
-        console.error('Failed to upload JSON to blob:', error);
-        throw error;
-    }
+function rgbToHex(r: number, g: number, b: number): string {
+    const toHex = (n: number) => Math.round(n).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 }
 
-async function uploadImageToBlob(fileName: string, imageBuffer: Buffer): Promise<string> {
-    const url  = (await put(`images/${fileName}`, imageBuffer, {
-      access: 'public',
-      contentType: 'image/jpeg', // Adjust the content type as needed
-      addRandomSuffix: false,
-    })).downloadUrl;
-    return url;
-}
-
-function rgbToHex(r: number, g: number, b: number ): string {
-  return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
-}
-
-async function fetchCoverAndTextColours(imageURL: string, retries: number = 2): Promise<{ spineColor: string; textColor: string }> {
+async function fetchCoverAndTextColours(
+    imageURL: string,
+    supabase: SupabaseClient | null,
+    bucket: string,
+    objectPath: string,
+    retries = 2
+): Promise<{ spineColor: string; textColor: string }> {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            // Fetch the image as a Buffer
-            const response = await fetch(imageURL);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            let imageBuffer: Buffer;
+            if (supabase) {
+                const { data, error } = await supabase.storage.from(bucket).download(objectPath);
+                if (error) throw new Error(error.message);
+                const arrayBuffer = await data.arrayBuffer();
+                imageBuffer = Buffer.from(arrayBuffer);
+            } else {
+                const response = await fetch(imageURL);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                imageBuffer = Buffer.from(arrayBuffer);
             }
-            
-            // node-fetch v3 uses standard fetch API - use arrayBuffer() then convert to Buffer
-            const arrayBuffer = await response.arrayBuffer();
-            const imageBuffer = Buffer.from(arrayBuffer);
-            
-            if (!imageBuffer || imageBuffer.length === 0) {
+            if (!imageBuffer.length) {
                 throw new Error('Image buffer is empty');
             }
 
-            // Use Vibrant to get dominant color
-            const palette = await Vibrant.from(imageBuffer).getPalette();
-            if (!palette || !palette.Vibrant) {
-                throw new Error('Failed to extract colors from image - no vibrant palette');
+            const { data: pixels, info } = await sharp(imageBuffer)
+                // Downsample to make mode extraction fast and stable.
+                .resize(120, 180, { fit: 'inside' })
+                .ensureAlpha()
+                .raw()
+                .toBuffer({ resolveWithObject: true });
+
+            const colorFrequency = new Map<string, number>();
+            const channels = info.channels;
+            const binSize = 24;
+
+            for (let i = 0; i < pixels.length; i += channels) {
+                const r = pixels[i];
+                const g = pixels[i + 1];
+                const b = pixels[i + 2];
+                const a = channels > 3 ? pixels[i + 3] : 255;
+                if (a < 32) continue;
+
+                const qr = Math.min(255, Math.round(r / binSize) * binSize);
+                const qg = Math.min(255, Math.round(g / binSize) * binSize);
+                const qb = Math.min(255, Math.round(b / binSize) * binSize);
+                const key = `${qr},${qg},${qb}`;
+                colorFrequency.set(key, (colorFrequency.get(key) || 0) + 1);
             }
 
-            const dominantColor = palette.Vibrant.rgb;
-            if (!dominantColor || dominantColor.length < 3) {
-                throw new Error('Failed to extract colors from image - invalid RGB values');
+            if (colorFrequency.size === 0) {
+                throw new Error('No opaque pixels found in image');
             }
 
-            const spineColor = rgbToHex(dominantColor[0], dominantColor[1], dominantColor[2]);
+            let dominantKey = '';
+            let dominantCount = -1;
+            for (const [key, count] of colorFrequency.entries()) {
+                if (count > dominantCount) {
+                    dominantKey = key;
+                    dominantCount = count;
+                }
+            }
+
+            const [r, g, b] = dominantKey.split(',').map(Number);
+            const spineColor = rgbToHex(r, g, b);
             const textColor = tinycolor(spineColor).isDark() ? '#FFFFFF' : '#000000';
-
             return { spineColor, textColor };
         } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            
-            if (attempt === retries) {
-                // Last attempt failed, throw with details
-                throw new Error(`Color extraction failed after ${retries} attempts: ${errorMsg}`);
-            }
-            
-            // Wait before retrying (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+            if (attempt === retries) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
         }
     }
-    
-    // Should never reach here, but TypeScript needs it
-    throw new Error('Color extraction failed - unexpected error');
+    throw new Error('Unexpected color extraction failure');
 }
 
-async function fetchBookQualities(isbn: string) { 
-    // First check if the image already exists
-    const blobUrl = process.env.BLOB_URL
-    if (!blobUrl) {
-        throw new Error("BLOB_URL not found");
-    }
-    const coverPath = path.join("images", `${isbn}.jpg`);
-    const defaultIm = path.join("books","null.jpg");
-    try {
-        const headResult = await head(coverPath);
-        const imageUrl = headResult.downloadUrl; 
-        const coverImage = imageUrl;
-
-        try {
-            const { spineColor, textColor } = await fetchCoverAndTextColours(imageUrl);    
-            return { coverImage, spineColor, textColor };
-        } catch (colorError) {
-            console.error(`Error fetching colors for ${isbn}:`, colorError instanceof Error ? colorError.message : String(colorError));
-            // Return default colors if color extraction fails
-            return { coverImage, spineColor: "#FFFFFF", textColor: "#000000" };
-        }
-    } catch(error) {
-        // Otherwise we look on the Google API to retrieve it
-        const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
-        const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${apiKey}`;
-        const response = await fetch(url);
-        const data = (await response.json()) as GoogleBooksResponse;
-
-        if (!data.items || data.items.length === 0) {
-            return { coverImage: defaultIm, spineColor: "#FFFFFF", textColor: "#000000" };
-        }
-
-        const volumeInfo = data.items[0].volumeInfo;
-        if (!volumeInfo || !volumeInfo.imageLinks || !volumeInfo.imageLinks.thumbnail) {
-            return { coverImage: defaultIm, spineColor: "#FFFFFF", textColor: "#000000" };
-        }
-
-        const coverUrl = volumeInfo.imageLinks.thumbnail;
-        const imageResponse = await fetch(coverUrl);
-        // node-fetch v3 uses standard fetch API - use arrayBuffer() then convert to Buffer
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const imageBuffer = Buffer.from(arrayBuffer);
-        const imageUrl = await uploadImageToBlob(`${isbn}.jpg`, imageBuffer);
-        const coverImage = imageUrl;
-        try {
-            const { spineColor, textColor } = await fetchCoverAndTextColours(imageUrl);
-            return { coverImage, spineColor, textColor };
-        } catch (error) {
-            console.error(`Error processing image for ${isbn}:`, error instanceof Error ? error.message : String(error));
-            return {coverImage, spineColor: "#FFFFFF", textColor: "#000000" }; // default colors in case of error
-        }
-    } 
+function rowToBook(row: LibraryBookRow): ProcessedBook {
+    return {
+        ISBN: row.isbn,
+        title: row.title,
+        author: row.author,
+        date: row.finished_date,
+        rating: row.rating,
+        coverImage: row.cover_image,
+        spineColor: row.spine_color,
+        textColor: row.text_color,
+        slug: row.slug,
+        summary: row.summary || '',
+    };
 }
 
-// Function to parse CSV data and fetch book details
-export async function csvToJSON(csvData: string | Buffer): Promise<ProcessedBook[]> {
-    console.log('Parsing CSV data...');
+function bookToRow(book: ProcessedBook): LibraryBookRow {
+    return {
+        isbn: book.ISBN,
+        title: book.title,
+        author: book.author,
+        finished_date: book.date,
+        rating: book.rating,
+        cover_image: book.coverImage,
+        spine_color: book.spineColor,
+        text_color: book.textColor,
+        slug: book.slug,
+        summary: book.summary || '',
+    };
+}
+
+function getSupabaseBooksBucket(): string {
+    return process.env.SUPABASE_BOOKS_BUCKET || 'book covers';
+}
+
+function getSupabaseBooksPrefix(): string {
+    const rawPrefix = process.env.SUPABASE_BOOKS_STORAGE_PREFIX || '';
+    return rawPrefix
+        ? rawPrefix.replace(/^\/+/, '').replace(/\/+$/, '') + '/'
+        : '';
+}
+
+function getSupabaseBooksObjectPath(isbn: string): string {
+    return `${getSupabaseBooksPrefix()}${isbn}.jpg`;
+}
+
+function encodeStoragePath(pathValue: string): string {
+    return pathValue
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
+}
+
+function getSupabaseBooksCoverUrl(isbn: string): string {
+    const supabaseUrl =
+        process.env.SUPABASE_URL ||
+        process.env.DB_SUPA_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_DB_SUPA_SUPABASE_URL;
+
+    if (!supabaseUrl) return '/books/null.jpg';
+
+    const bucket = getSupabaseBooksBucket();
+    const objectPath = getSupabaseBooksObjectPath(isbn);
+
+    // Supabase public object URL format:
+    // {SUPABASE_URL}/storage/v1/object/public/{bucket}/{prefix}{filename}
+    return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${encodeStoragePath(bucket)}/${encodeStoragePath(objectPath)}`;
+}
+
+export function csvToJSON(
+    csvData: string | Buffer,
+    existingByIsbn: Map<string, ProcessedBook> = new Map()
+): ProcessedBook[] {
     const records = parse(csvData, {
         columns: true,
         skip_empty_lines: true,
-    });
-    
-    console.log(`Parsed ${records.length} records from CSV`);
+    }) as Record<string, string>[];
 
-    const books = [];
-    let skippedCount = 0;
-    let skippedReasons: Record<string, number> = {};
-    
-    // Filter and validate records first
-    const validRecords = [];
-    for (let record of records) {
-        const title = record["Title"] || "";
-        const isbn = record["ISBN-13"] || "";
-        
-        // Check if book is finished reading (field exists and is not empty)
-        // Try multiple field name variations in case CSV has different column names
-        const finishedReading = record["Finished Reading"] || record["Finished Reading "] || record["finished reading"] || record["FinishedReading"];
-        const didNotFinish = record["Did Not Finish"] || record["Did Not Finish "] || record["did not finish"] || record["DidNotFinish"];
-        
-        // More lenient check - allow whitespace-only but check if it's actually empty
-        const finishedReadingTrimmed = finishedReading ? String(finishedReading).trim() : "";
-        if (!finishedReadingTrimmed || finishedReadingTrimmed === "" || finishedReadingTrimmed === "null" || finishedReadingTrimmed === "undefined") {
-            skippedCount++;
-            skippedReasons["no_finished_date"] = (skippedReasons["no_finished_date"] || 0) + 1;
-            continue; // Skip books without a finished reading date
-        }
-        
-        if (didNotFinish && (didNotFinish.toString().toUpperCase() === "Y" || didNotFinish.toString().toUpperCase() === "YES")) {
-            skippedCount++;
-            skippedReasons["did_not_finish"] = (skippedReasons["did_not_finish"] || 0) + 1;
-            continue; // Skip books marked as "Did Not Finish"
-        }
-        
-        // Validate required fields
-        if (!record["Title"] || !record["ISBN-13"]) {
-            skippedCount++;
-            skippedReasons["missing_fields"] = (skippedReasons["missing_fields"] || 0) + 1;
-            console.warn(`Skipping book with missing title or ISBN: ${JSON.stringify({title, isbn})}`);
-            continue;
-        }
-        
-        validRecords.push({ record, finishedReadingTrimmed });
-    }
-    
-    // Process books in parallel batches with robust error handling
-    const BATCH_SIZE = 10;
-    console.log(`Processing ${validRecords.length} books in parallel batches of ${BATCH_SIZE}...`);
-    
-    for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
-        const batch = validRecords.slice(i, i + BATCH_SIZE);
-        const batchPromises = batch.map(async ({ record, finishedReadingTrimmed }) => {
-            try {
-                console.log(`Processing book: ${record["Title"]} (ISBN: ${record["ISBN-13"]})`);
-                const {coverImage, spineColor, textColor }  = await fetchBookQualities(record["ISBN-13"]);
-                
-                
-                // Convert rating to number, defaulting to 0 if invalid
-                const ratingValue = record["Rating"];
-                const rating = ratingValue ? Number(ratingValue) * 2 : 0;
-                if (isNaN(rating)) {
-                    console.warn(`Invalid rating for ${record["Title"]}: ${ratingValue}, defaulting to 0`);
-                }
-                
-                return {
-                    ISBN: record["ISBN-13"],
-                    title: record["Title"],
-                    author: record["Authors"] || "Unknown",
-                    date: finishedReadingTrimmed,
-                    rating: rating,
-                    coverImage: coverImage,
-                    spineColor: spineColor || "#FFFFFF",
-                    textColor: textColor || "#000000",
-                    slug: "/books/" + record["ISBN-13"],
-                    summary: record["Notes"] || "",
-                };
-            } catch (error) {
-                console.error(`Error processing book ${record["Title"]}:`, error instanceof Error ? error.message : String(error));
-                return null; // Return null for failed books
-            }
+    const books: ProcessedBook[] = [];
+
+    for (const record of records) {
+        const isbn = (record['ISBN-13'] || '').trim();
+        const title = (record['Title'] || '').trim();
+        const finishedReading = (
+            record['Finished Reading'] ||
+            record['Finished Reading '] ||
+            record['finished reading'] ||
+            record['FinishedReading'] ||
+            ''
+        ).trim();
+        const didNotFinish = (
+            record['Did Not Finish'] ||
+            record['Did Not Finish '] ||
+            record['did not finish'] ||
+            record['DidNotFinish'] ||
+            ''
+        )
+            .trim()
+            .toUpperCase();
+
+        if (!isbn || !title) continue;
+        if (!finishedReading) continue;
+        if (didNotFinish === 'Y' || didNotFinish === 'YES') continue;
+
+        const existing = existingByIsbn.get(isbn);
+        const rawRating = Number(record['Rating'] || 0);
+        const rating = Number.isFinite(rawRating) ? rawRating * 2 : 0;
+
+        books.push({
+            ISBN: isbn,
+            title,
+            author: (record['Authors'] || 'Unknown').trim() || 'Unknown',
+            date: finishedReading,
+            rating,
+            coverImage: getSupabaseBooksCoverUrl(isbn),
+            spineColor: existing?.spineColor || '#FFFFFF',
+            textColor: existing?.textColor || '#000000',
+            slug: `/books/${isbn}`,
+            summary: record['Notes'] || existing?.summary || '',
         });
-        
-        const batchResults = await Promise.all(batchPromises);
-        const successfulBooks = batchResults.filter(book => book !== null);
-        books.push(...successfulBooks);
-        
-        const failedCount = batchResults.length - successfulBooks.length;
-        if (failedCount > 0) {
-            console.warn(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${failedCount} books failed to process`);
-        }
-        
-        // Small delay between batches to avoid overwhelming APIs
-        if (i + BATCH_SIZE < validRecords.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
     }
-    console.log(`Successfully processed ${books.length} books (skipped ${skippedCount} records)`);
+
+    books.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return books;
 }
 
-export async function books() {
-    try {
-        // Verify we have the required token
-        if (!process.env.BLOB_READ_WRITE_TOKEN) {
-            throw new Error('BLOB_READ_WRITE_TOKEN is not set - cannot process books');
-        }
+async function applyBookColors(
+    books: ProcessedBook[],
+    existingByIsbn: Map<string, ProcessedBook>,
+    supabase: SupabaseClient | null
+): Promise<ProcessedBook[]> {
+    const bucket = getSupabaseBooksBucket();
+    return Promise.all(
+        books.map(async (book) => {
+            const existing = existingByIsbn.get(book.ISBN);
 
-        console.log('Fetching CSV from blob...');
-        const csvData = await fetchCSVFromBlob();
-        console.log(`CSV fetched successfully (${csvData.length} bytes), processing books...`);
-        
-        const bookData = await csvToJSON(csvData);
-        console.log(`Processed ${bookData.length} books from CSV`);
+            try {
+                const colors = await fetchCoverAndTextColours(
+                    book.coverImage,
+                    supabase,
+                    bucket,
+                    getSupabaseBooksObjectPath(book.ISBN)
+                );
+                return {
+                    ...book,
+                    spineColor: colors.spineColor,
+                    textColor: colors.textColor,
+                };
+            } catch (error: any) {
+                console.warn(
+                    `Failed to extract cover colors for ${book.ISBN}: ${error?.message || String(error)}`
+                );
+                return {
+                    ...book,
+                    spineColor: existing?.spineColor || '#FFFFFF',
+                    textColor: existing?.textColor || '#000000',
+                };
+            }
+        })
+    );
+}
 
-        if (bookData.length === 0) {
-            throw new Error('No books were processed from CSV - check CSV format and data');
-        }
-
-        bookData.sort((a, b) => {
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-        });
-
-        console.log('Uploading processed books to JSON blob...');
-        const uploadResult = await uploadJSONToBlob(bookData);
-        console.log(`JSON uploaded successfully - version ${uploadResult.version}, ${uploadResult.recordCount} records`);
-        
-        // Wait a moment to ensure blob is available
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        return bookData;
-    } catch (error) {
-        console.error('Error in books() function:', error);
-        throw error;
+export async function syncBooksFromCsv(csvData: string | Buffer): Promise<ProcessedBook[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+        throw new Error(
+            'Supabase not configured. Set SUPABASE_URL (or DB_SUPA_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.'
+        );
     }
+
+    const { data: existingRows, error: readError } = await supabase
+        .from('library_books')
+        .select('*');
+    if (readError) throw new Error(`Failed to read existing books: ${readError.message}`);
+
+    const existingByIsbn = new Map<string, ProcessedBook>();
+    for (const row of (existingRows || []) as LibraryBookRow[]) {
+        existingByIsbn.set(row.isbn, rowToBook(row));
+    }
+
+    const parsedBooks = csvToJSON(csvData, existingByIsbn);
+    const books = await applyBookColors(parsedBooks, existingByIsbn, supabase);
+    if (books.length === 0) return [];
+
+    const rows = books.map(bookToRow);
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase.from('library_books').upsert(batch, {
+            onConflict: 'isbn',
+        });
+        if (error) throw new Error(`Failed to upsert books: ${error.message}`);
+    }
+
+    const currentIsbns = new Set(books.map((b) => b.ISBN));
+    const staleIsbns = (existingRows || [])
+        .map((row: any) => row.isbn as string)
+        .filter((isbn) => !currentIsbns.has(isbn));
+    if (staleIsbns.length > 0) {
+        const { error } = await supabase
+            .from('library_books')
+            .delete()
+            .in('isbn', staleIsbns);
+        if (error) throw new Error(`Failed to delete stale books: ${error.message}`);
+    }
+
+    return books;
+}
+
+export async function syncBooksFromLocalCsv(csvPath = path.join(process.cwd(), 'reading-list.csv')): Promise<ProcessedBook[]> {
+    if (!fs.existsSync(csvPath)) {
+        throw new Error(`CSV file not found: ${csvPath}`);
+    }
+    const csvData = fs.readFileSync(csvPath, 'utf8');
+    return syncBooksFromCsv(csvData);
+}
+
+// Backwards-compatible export name used by API route.
+export async function books(): Promise<ProcessedBook[]> {
+    return syncBooksFromLocalCsv();
 }
 
 async function main() {
-    // Check if we have the required environment variables
-    const requiredEnvVars = ['BLOB_READ_WRITE_TOKEN', 'BLOB_URL', 'GOOGLE_BOOKS_API_KEY'];
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-    
-    if (missingVars.length > 0) {
-        console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
-        console.warn("Skipping data generation - books data will not be available");
-        return;
-    }
-
-    // Allow forcing regeneration via FORCE_REGENERATE env variable
-    const forceRegenerate = process.env.FORCE_REGENERATE === 'true';
-    
-    if (!forceRegenerate) {
-        try {
-            // Check if versioned data exists
-            const existingData = await fetchVersionedData<ProcessedBook[]>("json_data/index.json");
-            if (existingData) {
-                console.log(`Found existing books data version ${existingData.version.version} with ${existingData.data.length} books`);
-                console.log("Skipping generation as data already exists");
-                console.log("To force regeneration, set FORCE_REGENERATE=true");
-                return;
-            }
-        } catch(error) {
-            console.log("No existing versioned data found, checking for legacy data...");
-            
-            // Check for legacy non-versioned data
-            try {
-                const { head } = await import('@vercel/blob');
-                await head(path.join("json_data", "index.json"));
-                console.log("Found legacy data, but no versioned data. Generating fresh versioned data...");
-            } catch(legacyError) {
-                console.log("No existing data found at all, generating fresh data...");
-            }
-        }
-    } else {
-        console.log("FORCE_REGENERATE=true - forcing regeneration even though data exists");
-    }
-    
-    console.log("Generating fresh books data...");
-    
     try {
-        await books();
+        if (!hasSupabaseConfig()) {
+            console.warn('Skipping books sync: Supabase env vars are missing.');
+            return;
+        }
+        if (!fs.existsSync(path.join(process.cwd(), 'reading-list.csv'))) {
+            console.warn('Skipping books sync: reading-list.csv not found.');
+            return;
+        }
+        const synced = await syncBooksFromLocalCsv();
+        console.log(`Synced ${synced.length} books to Supabase.`);
     } catch (error: any) {
-        // Don't fail the build if data generation fails
-        console.error("Failed to generate books data:", error.message);
-        console.warn("Build will continue without books data");
+        // Keep build resilient.
+        console.error(`Books sync failed: ${error.message || String(error)}`);
+        console.warn('Build will continue without syncing books.');
     }
 }
 

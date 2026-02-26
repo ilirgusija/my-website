@@ -30,3 +30,7 @@ coverage
 # Misc
 *.log
 .cache
+
+# garden – fetched from Supabase at build, not from repo
+content/garden/
+.garden-sync-state

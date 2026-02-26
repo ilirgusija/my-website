@@ -12,11 +12,13 @@ import {
   MenuItem,
   Icon,
   MenuGroup,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { PropsWithChildren } from "react";
-import { FiMenu } from "react-icons/fi";
+import { FiMenu, FiGithub, FiLinkedin, FiMail } from "react-icons/fi";
+import { ThemeToggleButton } from "./ThemeToggleButton";
 
 function Navigation({
   link,
@@ -28,15 +30,20 @@ function Navigation({
   isExternal?: boolean;
 }) {
   const router = useRouter();
+  const pathname = router.asPath.split("?")[0];
+  const activeColor = useColorModeValue("text.primary", "text.primary");
+  const inactiveColor = useColorModeValue("text.muted", "text.muted");
   const isActive =
-    link === "/" ? router.asPath === link : router.asPath.includes(link);
+    link === "/"
+      ? pathname === "/"
+      : pathname === link || pathname.startsWith(link + "/");
 
   return (
     <Link href={link} target={isExternal ? "_blank" : "_self"}>
       <Text
         fontSize="lg"
-        color={isActive ? "black" : "gray.500"}
-        _hover={{ color: "black" }}
+        color={isActive ? activeColor : inactiveColor}
+        _hover={{ color: "text.primary" }}
       >
         {children}
       </Text>
@@ -66,25 +73,38 @@ function Layout({ children }: PropsWithChildren) {
             <Navigation link="/">Home</Navigation>
             <Navigation link="/research">Research</Navigation>
             <Navigation link="/books">Bookshelf</Navigation>
-            {/* <Navigation link="/writing">Writing</Navigation> */}
+            <Navigation link="/garden">Garden</Navigation>
           </VStack>
           <VStack align="flex-start">
             <Text fontWeight="bold" fontSize="smaller">
               FIND ME ON
             </Text>
-            <Navigation link="https://github.com/ilirgusija" isExternal>
-              GitHub
-            </Navigation>
-            <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
-              LinkedIn
-            </Navigation>
+            <Link href="https://github.com/ilirgusija" target="_blank">
+              <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                <Icon as={FiGithub} boxSize={4} />
+                <Text>GitHub</Text>
+              </HStack>
+            </Link>
+            <Link href="https://linkedin.com/in/ilir-gusija" target="_blank">
+              <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                <Icon as={FiLinkedin} boxSize={4} />
+                <Text>LinkedIn</Text>
+              </HStack>
+            </Link>
+            <Link href="mailto:ilir.gusija@queensu.ca" target="_blank">
+              <HStack color="text.muted" _hover={{ color: "text.primary" }}>
+                <Icon as={FiMail} boxSize={4} />
+                <Text>Email</Text>
+              </HStack>
+            </Link>
           </VStack>
+          <ThemeToggleButton />
         </VStack>
       </Flex>
       <Container width="100%" maxW="2000px" position="relative" px={{ base: 4, md: 6, lg: 0 }}>
         <Box
           width="100%"
-          bg="white"
+          bg="bg.canvas"
           height={20}
           position="fixed"
           top={0}
@@ -102,17 +122,19 @@ function Layout({ children }: PropsWithChildren) {
           width="100%"
           align="center"
           borderBottom="1px solid"
-          borderBottomColor="gray.200"
-          bg="white"
+          borderBottomColor="border.subtle"
+          bg="bg.canvas"
           px={4}
         >
-          <Menu>
+          <HStack spacing={2}>
+            <Menu>
             <MenuButton
               as={IconButton}
               aria-label="Options"
               icon={<Icon as={FiMenu} boxSize={4} />}
               variant="outline"
               size="sm"
+              borderColor="border.subtle"
             />
             <MenuList>
               <MenuGroup title="NAVIGATION">
@@ -120,21 +142,20 @@ function Layout({ children }: PropsWithChildren) {
                   <Navigation link="/">Home</Navigation>
                   <Navigation link="/research">Research</Navigation>
                   <Navigation link="/books">Bookshelf</Navigation>
-                  {/* <Navigation link="/writing">Writing</Navigation> */}
+                  <Navigation link="/garden">Garden</Navigation>
                 </VStack>
               </MenuGroup>
               <MenuGroup title="FIND ME ON">
                 <VStack align="flex-start" px={4} spacing={3} mb={2}>
-                  <Navigation link="https://github.com/ilirgusija" isExternal>
-                    GitHub
-                  </Navigation>
-                  <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>
-                    LinkedIn
-                  </Navigation>
+                  <Navigation link="https://github.com/ilirgusija" isExternal>GitHub</Navigation>
+                  <Navigation link="https://linkedin.com/in/ilir-gusija" isExternal>LinkedIn</Navigation>
+                  <Navigation link="mailto:ilir.gusija@queensu.ca" isExternal>Email</Navigation>
                 </VStack>
               </MenuGroup>
             </MenuList>
-          </Menu>
+            </Menu>
+            <ThemeToggleButton size="sm" />
+          </HStack>
         </Flex>
         <Flex
           justify="center"
@@ -147,15 +168,16 @@ function Layout({ children }: PropsWithChildren) {
           width="100%"
           align="center"
           borderBottom="1px solid"
-          borderBottomColor="gray.200"
-          bg="white"
+          borderBottomColor="border.subtle"
+          bg="bg.canvas"
           px={4}
         >
           <HStack spacing={8}>
             <Navigation link="/">Home</Navigation>
             <Navigation link="/research">Research</Navigation>
             <Navigation link="/books">Bookshelf</Navigation>
-            {/* <Navigation link="/writing">Writing</Navigation> */}
+            <Navigation link="/garden">Garden</Navigation>
+            <ThemeToggleButton size="sm" />
           </HStack>
         </Flex>
         {children}
