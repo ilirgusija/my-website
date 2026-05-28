@@ -84,7 +84,7 @@ export async function getStaticPaths() {
                 params: { slug: [slug.replace('/books/', '')] }
             }))
         ],
-        fallback: false, // Pre-render all pages at build time for better performance
+        fallback: "blocking",
     };
 }
 
